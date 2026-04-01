@@ -914,6 +914,8 @@ function googleLogin(){
   debugLog('signInWithPopup 시도...');
   auth.signInWithPopup(provider).then(result=>{
     debugLog('✅ 팝업 로그인 성공: ' + (result.user?.email || 'unknown'));
+    // onAuthStateChanged가 안 불릴 수 있으므로 직접 처리
+    if(result.user) handleLoginSuccess(result.user);
   }).catch(e=>{
     debugLog('❌ 팝업 로그인 실패: ' + e.code + ' / ' + e.message);
     if(e.code==='auth/popup-blocked'){
@@ -978,7 +980,6 @@ function showLoginScreen(){
 }
 
 function handleLoginSuccess(user){
-  if(authResolved) return;
   authResolved = true;
   currentUser = user;
   debugLog('→ 로그인 성공 처리: ' + (user.email||user.uid));
