@@ -2146,6 +2146,8 @@ function applyWizardData(){
   const priceWon = wzParseWon(document.getElementById('wz-price'));
   const midloanWon = wzParseWon(document.getElementById('wz-midloan'));
   const loanWon = wzParseWon(document.getElementById('wz-loan'));
+  const optionWon = wzParseWon(document.getElementById('wz-option'));
+  const airconWon = wzParseWon(document.getElementById('wz-aircon'));
   const rate = parseFloat(document.getElementById('wz-rate').value) || 5;
   const term = parseFloat(document.getElementById('wz-term').value) || 40;
   const incomeWon = wzParseWon(document.getElementById('wz-income'));
@@ -2160,39 +2162,74 @@ function applyWizardData(){
   const priceMW = Math.round(priceWon / 10000);
   const midloanMW = Math.round(midloanWon / 10000);
   const loanMW = loanWon > 0 ? Math.min(Math.round(loanWon / 10000), 60000) : 60000;
+  const optionMW = Math.round(optionWon / 10000);
+  const airconMW = Math.round(airconWon / 10000);
   const incomeMW = Math.round(incomeWon / 10000);
 
   // 대출 설정
   loanAmount = loanMW;
   repaySettings = {rate, term, income:incomeMW, other:0};
 
-  // 납부 완료 항목
+  // ═══ 납부 완료 항목 (paidItems) ═══
+  paidItems = [];
   if(priceMW > 0){
-    paidItems = [{name:'계약금', amount:priceMW*0.1, note:'분양가의 10%'}];
+    // 1) 계약금: 분양가의 10% (모든 사람 필수)
+    const depositMW = priceMW * 0.1;
+    paidItems.push({name:'계약금', amount:depositMW, note:'분양가의 10%'});
+
+    // 2) 중도금 자납분: 분양가의 60% - 중도금대출잔액 = 본인이 직접 낸 금액
+    const midTotalMW = priceMW * 0.6; // 중도금 총액 (분양가의 60%)
+    if(midloanMW < midTotalMW){
+      // 중도금 대출이 60%보다 적으면, 차액은 본인이 직접 납부한 것
+      const selfPaidMid = midTotalMW - midloanMW;
+      if(selfPaidMid > 0){
+        paidItems.push({name:'중도금 자납분', amount:selfPaidMid, note:'중도금 총액 − 대출액'});
+      }
+    }
+  }
+  // 3) 유상옵션 계약금: 150만원 (정액, 유상옵션 신청자 전원)
+  if(optionMW > 0){
+    paidItems.push({name:'유상옵션 계약금', amount:150, note:'유상옵션 신청 시 정액'});
   }
 
-  // 대출 처리 항목
-  if(priceMW > 0 || midloanMW > 0){
-    loanItems = [];
+  // ═══ 납부 필요 - 대출 처리 항목 (loanItems) ═══
+  loanItems = [];
+  if(priceMW > 0){
+    // 중도금 대출 상환 (대출받은 금액은 잔금일에 주담대로 전환)
     if(midloanMW > 0) loanItems.push({name:'중도금 대출 상환', amount:midloanMW, note:'주택담보대출로 자동 처리'});
-    if(priceMW > 0){
-      const deposit = priceMW * 0.1;
-      const remainder = priceMW - deposit - midloanMW;
-      if(remainder > 0) loanItems.push({name:'분양가 잔금', amount:remainder, note:'분양가−계약금−중도금'});
-    }
-    // 발코니 확장비
-    if(hasBalcony && type && TYPE_DATA[type]){
-      const balconyMW = Math.round(TYPE_DATA[type].balcony / 10000);
-      loanItems.push({name:'발코니 확장비', amount:balconyMW, note:type+'타입'});
-    }
+    // 분양가 잔금 (분양가의 30%)
+    const balanceMW = priceMW * 0.3;
+    if(balanceMW > 0) loanItems.push({name:'분양가 잔금', amount:balanceMW, note:'분양가의 30%'});
+  }
+  // 발코니 확장비
+  if(hasBalcony && type && TYPE_DATA[type]){
+    const balconyMW = Math.round(TYPE_DATA[type].balcony / 10000);
+    loanItems.push({name:'발코니 확장비', amount:balconyMW, note:type+'타입'});
   }
 
-  // 현금 납부 항목 (중도금 이자)
-  if(priceMW > 0){
+  // ═══ 납부 필요 - 현금 납부 항목 (cashItems) ═══
+  cashItems = [];
+  // 유상옵션 잔금 (총액 - 계약금 150만원)
+  if(optionMW > 0){
+    const optionBalance = optionMW - 150;
+    if(optionBalance > 0) cashItems.push({name:'유상옵션 잔금', amount:optionBalance, note:'옵션 총액 − 계약금 150만원'});
+  }
+  // 에어컨
+  if(airconMW > 0) cashItems.push({name:'시스템 에어컨', amount:airconMW, note:'LG 시스템 에어컨'});
+  // 중도금 후불이자
+  if(priceMW > 0 && midloanMW > 0){
     const finalBalanceDate = balanceDate || '2026-06-22';
     const interest = calcMidInterest(priceMW, finalBalanceDate, rounds);
-    cashItems = [];
-    if(interest > 0) cashItems.push({name:'중도금 후불이자', amount:interest, note:'추정치 (실제 금액과 차이가 있을 수 있음)', est:false});
+    if(interest > 0) cashItems.push({name:'중도금 후불이자', amount:interest, note:'추정치 (실제 금액과 차이가 있을 수 있음)', est:true});
+  }
+  // 취득세/지방교육세 자동 계산
+  if(priceMW > 0){
+    const totalAcqWon = priceWon + (hasBalcony && type && TYPE_DATA[type] ? TYPE_DATA[type].balcony : 0) + optionWon;
+    const taxResult = calcAcquisitionTax(totalAcqWon);
+    const taxMW = Math.round(taxResult.tax / 10000);
+    const eduTaxMW = Math.round(taxResult.eduTax / 10000);
+    if(taxMW > 0) cashItems.push({name:'취득세', amount:taxMW, note:'생애최초 주택구입 시 최대 200만원 감면 가능', est:true});
+    if(eduTaxMW > 0) cashItems.push({name:'지방교육세', amount:eduTaxMW, note:'취득세의 10%', est:true});
   }
 
   // 스케줄
