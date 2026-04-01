@@ -354,7 +354,7 @@ tr:active td{background:rgba(255,255,255,.02);}
 <!-- ── 로딩 화면 ── -->
 <div id="loading-screen" style="position:fixed;inset:0;background:#0a0a0b;z-index:600;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
   <div style="width:28px;height:28px;border:3px solid #27272b;border-top-color:#b8e636;border-radius:50%;animation:spin .8s linear infinite;"></div>
-  <div style="font-size:12px;color:#7a7a85;">기본 정보 등록을 위한 준비 중입니다...</div>
+  <div style="font-size:12px;color:#7a7a85;"><span id="loading-text">기본 정보 등록을 위한 준비 중입니다...</span></div>
 </div>
 
 <!-- ── 디버그 패널 (배포 후 제거) ── -->
@@ -983,13 +983,25 @@ function handleLoginSuccess(user){
   authResolved = true;
   currentUser = user;
   debugLog('→ 로그인 성공 처리: ' + (user.email||user.uid));
-  document.getElementById('loading-screen').style.display='none';
+  // 로그인 화면 숨기고 로딩 화면 표시 (까만 화면 방지)
   document.getElementById('login-screen').style.display='none';
+  document.getElementById('loading-screen').style.display='flex';
+  try{document.getElementById('loading-text').textContent='데이터를 불러오는 중입니다...';}catch(e){}
   document.getElementById('wizard').classList.remove('open');
   document.getElementById('user-name').textContent=user.displayName||user.email;
   document.getElementById('user-avatar').src=user.photoURL||'';
-  loadFromFirestore().catch(e=>{
-    debugLog('Firestore 로드 실패: ' + e.message);
+  
+  // Firestore 로드 (5초 타임아웃)
+  debugLog('Firestore 데이터 로드 시작...');
+  const firestoreTimeout = new Promise((_,reject)=>setTimeout(()=>reject(new Error('Firestore 타임아웃(5초)')), 5000));
+  
+  Promise.race([loadFromFirestore(), firestoreTimeout]).then(()=>{
+    debugLog('Firestore 로드 완료');
+    document.getElementById('loading-screen').style.display='none';
+  }).catch(e=>{
+    debugLog('Firestore 로드 실패/타임아웃: ' + e.message);
+    document.getElementById('loading-screen').style.display='none';
+    // 실패해도 위자드를 보여줌 (신규 사용자 취급)
     document.getElementById('app-main').style.display='none';
     document.getElementById('wizard').classList.add('open');
     showWzStep(1);
@@ -1054,33 +1066,36 @@ async function saveToFirestore(){
 }
 async function loadFromFirestore(){
   if(!currentUser) return;
+  debugLog('loadFromFirestore: uid=' + currentUser.uid);
   try {
     const doc = await db.collection('users').doc(currentUser.uid).get();
+    debugLog('Firestore 문서 존재: ' + doc.exists);
     if(doc.exists){
       const data = doc.data();
-      // 위자드를 통해 데이터가 실제로 입력됐는지 확인 (paidItems나 scheduleItems가 비어있으면 신규)
       const hasRealData = (data.paidItems && data.paidItems.length > 0) || 
                           (data.loanItems && data.loanItems.length > 0) ||
                           (data.cashItems && data.cashItems.length > 0) ||
                           (data.scheduleItems && data.scheduleItems.length > 0) ||
                           (data.purchaseItems && data.purchaseItems.length > 0);
+      debugLog('실제 데이터 있음: ' + hasRealData);
       if(hasRealData){
         applyLoadedData(data);
         document.getElementById('app-main').style.display = 'block';
+        debugLog('→ 대시보드 표시');
       } else {
-        // 데이터는 있지만 비어있음 → 위자드 표시
         document.getElementById('app-main').style.display = 'none';
         document.getElementById('wizard').classList.add('open');
         showWzStep(1);
+        debugLog('→ 위자드 표시 (데이터 비어있음)');
       }
     } else {
-      // 신규 사용자 → 위자드 표시
       document.getElementById('app-main').style.display = 'none';
       document.getElementById('wizard').classList.add('open');
       showWzStep(1);
+      debugLog('→ 위자드 표시 (신규 사용자)');
     }
   } catch(e){
-    console.warn('불러오기 실패', e);
+    debugLog('Firestore 에러: ' + e.message);
     document.getElementById('app-main').style.display = 'none';
     document.getElementById('wizard').classList.add('open');
     showWzStep(1);
@@ -1951,41 +1966,55 @@ function confirmReset(){
 function closeResetModal(){
   document.getElementById('reset-modal').classList.remove('open');
 }
-async function executeReset(){
+function executeReset(){
+  debugLog('executeReset() 호출됨');
   closeResetModal();
-  // 데이터 초기화
+  
+  // 1. 데이터 초기화
   loanAmount=60000; paidItems=[]; loanItems=[]; cashItems=[]; futureItems=[];
   repaySettings={rate:3.5,term:30,income:5000,other:0};
   purchaseItems=[]; researchItems=[]; scheduleItems=[];
-  // Firestore에서 삭제
+  debugLog('메모리 데이터 초기화 완료');
+  
+  // 2. Firestore에서 삭제 (비동기지만 기다리지 않음)
   if(currentUser){
-    try{ await db.collection('users').doc(currentUser.uid).delete(); }catch(e){}
+    db.collection('users').doc(currentUser.uid).delete().then(()=>{
+      debugLog('Firestore 데이터 삭제 완료');
+    }).catch(e=>{
+      debugLog('Firestore 삭제 실패: ' + e.message);
+    });
   }
-  // 위자드 표시
+  
+  // 3. 대시보드 숨기고 위자드 표시
   document.getElementById('app-main').style.display='none';
   document.getElementById('wizard').classList.add('open');
   showWzStep(1);
-  // 입력 필드 초기화
-  document.getElementById('wz-price').value='';
-  document.getElementById('wz-midloan').value='';
-  document.getElementById('wz-mid-rounds').value='6';
-  document.getElementById('wz-loan').value='';
-  document.getElementById('wz-rate').value='5';
-  document.getElementById('wz-term').value='40';
-  document.getElementById('wz-income').value='';
-  document.getElementById('wz-inspect').value='';
-  document.getElementById('wz-balance-date').value='';
-  document.getElementById('wz-move-date').value='';
-  document.getElementById('wz-calc-1').style.display='none';
-  if(document.getElementById('wz-calc-2'))document.getElementById('wz-calc-2').style.display='none';
-  if(document.getElementById('wz-option'))document.getElementById('wz-option').value='';
-  if(document.getElementById('wz-aircon'))document.getElementById('wz-aircon').value='';
-  document.getElementById('wz-type').value='';
-  document.getElementById('wz-balcony').checked=false;
-  document.getElementById('wz-balcony-wrap').style.display='none';
-  document.getElementById('wz-price-auto').value='';
-  document.getElementById('wz-auto-desc').style.display='none';
-  wzPriceMode('direct',document.getElementById('wz-price-tab-direct'));
+  debugLog('위자드 1단계 표시');
+  
+  // 4. 위자드 입력 필드 초기화
+  try {
+    document.getElementById('wz-price').value='';
+    document.getElementById('wz-midloan').value='';
+    document.getElementById('wz-mid-rounds').value='6';
+    document.getElementById('wz-loan').value='';
+    document.getElementById('wz-rate').value='5';
+    document.getElementById('wz-term').value='40';
+    document.getElementById('wz-income').value='';
+    document.getElementById('wz-inspect').value='';
+    document.getElementById('wz-balance-date').value='';
+    document.getElementById('wz-move-date').value='';
+    document.getElementById('wz-calc-1').style.display='none';
+    if(document.getElementById('wz-calc-2'))document.getElementById('wz-calc-2').style.display='none';
+    if(document.getElementById('wz-option'))document.getElementById('wz-option').value='';
+    if(document.getElementById('wz-aircon'))document.getElementById('wz-aircon').value='';
+    document.getElementById('wz-type').value='';
+    document.getElementById('wz-balcony').checked=false;
+    document.getElementById('wz-balcony-wrap').style.display='none';
+    document.getElementById('wz-price-auto').value='';
+    document.getElementById('wz-auto-desc').style.display='none';
+    wzPriceMode('direct',document.getElementById('wz-price-tab-direct'));
+  } catch(e){ debugLog('필드 초기화 중 에러: ' + e.message); }
+  
   showToast('🔄 초기화 완료');
 }
 
