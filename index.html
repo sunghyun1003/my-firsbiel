@@ -448,7 +448,7 @@ tr:active td{background:rgba(255,255,255,.02);}
       <label class="wizard-label">③ 발코니 확장</label>
       <div style="background:rgba(184,230,54,.06);border:1px solid rgba(184,230,54,.15);border-radius:8px;padding:12px;">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
-          <input type="checkbox" id="wz-balcony" onchange="updateWzCalc()" style="width:22px;height:22px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+          <input type="checkbox" id="wz-balcony" checked onchange="updateWzCalc()" style="width:22px;height:22px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
           <div>
             <div style="font-size:13px;font-weight:700;color:var(--text);">발코니 확장 신청함</div>
             <div style="font-size:11px;color:var(--due);margin-top:2px;font-family:'JetBrains Mono',monospace;" id="wz-balcony-price"></div>
@@ -487,23 +487,31 @@ tr:active td{background:rgba(255,255,255,.02);}
 
     <hr style="border:none;border-top:1px solid var(--border);margin:20px 0;">
     <div style="font-size:13px;font-weight:700;margin-bottom:8px;">중도금 대출 정보</div>
+    
     <div class="wizard-field">
-      <label class="wizard-label">중도금 대출 잔액 (원)</label>
-      <input class="wizard-input" id="wz-midloan" type="text" inputmode="numeric" placeholder="예: 330,000,000" oninput="wzFormatPrice(this);updateWzCalc2()" style="font-size:16px;">
-      <div class="wizard-hint">현재 남아있는 중도금 대출 잔액</div>
-      <div class="wizard-later">전액 대출 시 분양가의 60%, 일부 상환했으면 남은 금액</div>
-    </div>
-    <div class="wizard-field">
-      <label class="wizard-label">중도금 대출 회차</label>
-      <div style="background:rgba(62,168,232,.06);border:1px solid rgba(62,168,232,.15);border-radius:6px;padding:8px 10px;margin-bottom:6px;">
-        <div style="font-size:11px;color:var(--loan);line-height:1.5;">👇 <strong>아래에서 대출 회차를 선택</strong>해 주세요. 대출 실행 회차에 따라 후불이자가 달라집니다.</div>
+      <label class="wizard-label">① 중도금 대출 여부</label>
+      <div style="display:flex;gap:8px;">
+        <button id="wz-midloan-yes" class="tab active" onclick="wzMidloanToggle(true)" style="flex:1;padding:12px;font-size:13px;">대출 있음</button>
+        <button id="wz-midloan-no" class="tab" onclick="wzMidloanToggle(false)" style="flex:1;padding:12px;font-size:13px;">대출 없음</button>
       </div>
-      <select class="wizard-select" id="wz-mid-rounds" onchange="updateWzCalc2()" style="font-size:16px;padding:14px;border:2px solid var(--loan);">
-        <option value="6">6회차 전액 대출</option><option value="5">5회차 (2~6차)</option>
-        <option value="4">4회차 (3~6차)</option><option value="3">3회차 (4~6차)</option>
-        <option value="2">2회차 (5~6차)</option><option value="1">1회차 (6차만)</option>
-        <option value="0">중도금 대출 없음</option>
-      </select>
+    </div>
+    
+    <div id="wz-midloan-detail">
+      <div class="wizard-field">
+        <label class="wizard-label">② 대출 회차</label>
+        <select class="wizard-select" id="wz-mid-rounds" onchange="updateWzCalc2()" style="font-size:16px;padding:14px;">
+          <option value="6">6회차 전액 대출</option><option value="5">5회차 (2~6차)</option>
+          <option value="4">4회차 (3~6차)</option><option value="3">3회차 (4~6차)</option>
+          <option value="2">2회차 (5~6차)</option><option value="1">1회차 (6차만)</option>
+        </select>
+        <div class="wizard-hint">대출 실행 회차에 따라 후불이자가 달라집니다</div>
+      </div>
+      <div class="wizard-field">
+        <label class="wizard-label">③ 중도금 대출 잔액 (원)</label>
+        <input class="wizard-input" id="wz-midloan" type="text" inputmode="numeric" placeholder="예: 330,000,000" oninput="wzFormatPrice(this);updateWzCalc2()" style="font-size:16px;">
+        <div class="wizard-hint">현재 남아있는 중도금 대출 잔액</div>
+        <div class="wizard-later">전액 대출 시 분양가의 60%, 일부 상환했으면 남은 금액</div>
+      </div>
     </div>
 
     <div style="font-size:11px;color:var(--due);margin-top:16px;margin-bottom:6px;font-weight:600;">📋 확인해 주세요.</div>
@@ -526,7 +534,8 @@ tr:active td{background:rgba(255,255,255,.02);}
       <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:10px;">
         입주에 사용할 수 있는 <strong style="color:var(--text)">여유 자금</strong>을 입력해 주세요.<br>
         예적금, 주식 매도금, 부모님 지원 등을 모두 포함한 금액입니다.<br>
-        이 금액을 기준으로 <strong style="color:var(--text)">필요한 대출 금액이 자동 계산</strong>됩니다.
+        이 금액을 기준으로 <strong style="color:var(--text)">필요한 대출 금액이 자동 계산</strong>됩니다.<br>
+        <span style="color:var(--text3)">아직 모르면 비워두세요. 미입력 시 0원으로 계산됩니다.</span>
       </div>
       <div class="wizard-field" style="margin-bottom:0;">
         <input class="wizard-input" id="wz-cash" type="text" inputmode="numeric" placeholder="예: 200,000,000" oninput="wzFormatPrice(this)" style="font-size:18px;font-weight:700;border:2px solid var(--accent);">
@@ -549,7 +558,7 @@ tr:active td{background:rgba(255,255,255,.02);}
     <div class="wizard-field">
       <label class="wizard-label">연 소득 (원)</label>
       <input class="wizard-input" id="wz-income" type="text" inputmode="numeric" placeholder="예: 50,000,000" oninput="wzFormatPrice(this)" style="font-size:16px;">
-      <div class="wizard-hint">전년도 원천징수(세전) 금액을 입력하는 것이 가장 정확합니다.</div>
+      <div class="wizard-hint">전년도 원천징수(세전) 금액 기준.<br>혼인신고한 부부는 <strong>부부합산 연소득</strong>을 입력하세요.</div>
       <div class="wizard-later">미입력 시 5,000만원 기준 · 나중에 변경 가능</div>
     </div>
   </div>
@@ -603,6 +612,7 @@ tr:active td{background:rgba(255,255,255,.02);}
       <img class="user-avatar" id="user-avatar" src="" alt="">
       <span class="user-name" id="user-name"></span>
       <span id="auto-save-indicator" style="font-size:9px;color:var(--paid);opacity:0;transition:opacity .5s;">✓ 저장됨</span>
+      <button class="btn-logout" onclick="confirmReset()" style="color:var(--due);border-color:rgba(240,160,48,.3);padding:3px 6px;font-size:8px;">초기화</button>
     </div>
   </div>
 </div>
@@ -2018,6 +2028,18 @@ function fmtWonComma(n){
   return Math.round(n).toLocaleString('ko-KR') + '원';
 }
 
+// 중도금 대출 여부 토글
+function wzMidloanToggle(hasLoan){
+  document.getElementById('wz-midloan-yes').className = 'tab' + (hasLoan?' active':'');
+  document.getElementById('wz-midloan-no').className = 'tab' + (hasLoan?'':' active');
+  document.getElementById('wz-midloan-detail').style.display = hasLoan ? 'block' : 'none';
+  if(!hasLoan){
+    document.getElementById('wz-midloan').value = '';
+    document.getElementById('wz-mid-rounds').value = '6';
+  }
+  updateWzCalc2();
+}
+
 // 분양가 입력 방식 전환
 function wzPriceMode(mode, btn){
   document.getElementById('wz-price-direct').style.display = mode==='direct'?'block':'none';
@@ -2118,7 +2140,12 @@ function updateWzCalc2(){
     document.getElementById('wz-c-option').textContent = optionWon > 0 ? fmtWonComma(optionWon) : '—';
     document.getElementById('wz-c-aircon').textContent = airconWon > 0 ? fmtWonComma(airconWon) : '—';
     document.getElementById('wz-c-midloan').textContent = midloanWon > 0 ? fmtWonComma(midloanWon) : '—';
-    const priceWon = wzParseWon(document.getElementById('wz-price'));
+    let priceWon = wzParseWon(document.getElementById('wz-price'));
+  // 자동 입력 모드일 때 wz-price-auto에서 값 가져오기
+  if(priceWon === 0){
+    const autoVal = document.getElementById('wz-price-auto').value;
+    if(autoVal) priceWon = parseInt(autoVal.replace(/[^0-9]/g,'')) || 0;
+  }
     const priceMW = priceWon / 10000;
     const estInterest = calcMidInterest(priceMW, '2026-06-22', rounds);
     document.getElementById('wz-c-interest').textContent = rounds > 0 && estInterest > 0 ? '약 ' + fmtWonComma(estInterest * 10000) : '—';
@@ -2142,25 +2169,44 @@ function openPriceGuide(type){
     imgs = ['images/aircon1.jpg','images/aircon2.jpg'];
   }
   content.innerHTML = imgs.map((src,i)=>
-    '<img src="'+src+'" onclick="openImgZoom(this.src)" style="width:100%;margin-bottom:8px;border-radius:6px;cursor:zoom-in;display:block;">'
+    '<img src="'+src+'" data-zoomsrc="'+src+'" style="width:100%;margin-bottom:8px;border-radius:6px;cursor:zoom-in;display:block;pointer-events:none;">'
   ).join('');
   // 페이지 인디케이터 (현재 몇 번째 이미지인지)
   dots.innerHTML = imgs.map((_,i)=>'<div style="width:6px;height:6px;border-radius:50%;background:var(--border2);"></div>').join('');
   modal.classList.add('open');
-  // PC 마우스 드래그 스크롤
-  let isDragging=false, startY=0, scrollStart=0;
+  // PC 마우스 드래그 스크롤 + 클릭 확대 분리
+  let isDragging=false, startY=0, startX=0, scrollStart=0, dragDist=0;
   content.style.cursor='grab';
   content.onmousedown=function(e){
-    isDragging=true; startY=e.clientY; scrollStart=content.scrollTop;
+    isDragging=true; startY=e.clientY; startX=e.clientX; scrollStart=content.scrollTop; dragDist=0;
     content.style.cursor='grabbing'; content.style.userSelect='none';
     e.preventDefault();
   };
-  document.onmousemove=function(e){
+  content.onmousemove=function(e){
     if(!isDragging) return;
+    dragDist = Math.abs(e.clientY - startY) + Math.abs(e.clientX - startX);
     content.scrollTop = scrollStart - (e.clientY - startY);
   };
-  document.onmouseup=function(){
-    if(isDragging){ isDragging=false; content.style.cursor='grab'; content.style.userSelect=''; }
+  content.onmouseup=function(e){
+    if(isDragging){
+      isDragging=false; content.style.cursor='grab'; content.style.userSelect='';
+      // 드래그 거리가 짧으면 클릭으로 간주 → 확대
+      if(dragDist < 8){
+        const img = document.elementFromPoint(e.clientX, e.clientY);
+        if(img && img.tagName==='IMG' && img.dataset.zoomsrc) openImgZoom(img.dataset.zoomsrc);
+      }
+    }
+  };
+  // 모바일 터치에서도 탭 vs 스와이프 분리
+  let touchStartY=0, touchDist=0;
+  content.ontouchstart=function(e){ touchStartY=e.touches[0].clientY; touchDist=0; };
+  content.ontouchmove=function(e){ touchDist=Math.abs(e.touches[0].clientY-touchStartY); };
+  content.ontouchend=function(e){
+    if(touchDist < 8){
+      const t=e.changedTouches[0];
+      const img=document.elementFromPoint(t.clientX,t.clientY);
+      if(img && img.tagName==='IMG' && img.dataset.zoomsrc) openImgZoom(img.dataset.zoomsrc);
+    }
   };
   // 스크롤 위치에 따라 인디케이터 업데이트
   content.onscroll = function(){
@@ -2250,7 +2296,9 @@ function showWzStep(step){
   // 스크롤 최상단으로
   const body = document.getElementById('wz-step-'+step);
   if(body) body.scrollTop = 0;
-  document.querySelector('.wizard-overlay')?.scrollTo(0,0);
+  const wiz = document.querySelector('.wizard-overlay');
+  if(wiz) wiz.scrollTop = 0;
+  document.querySelectorAll('.wizard-body').forEach(b=>b.scrollTop=0);
 }
 
 let wzNavLock = false;
@@ -2329,6 +2377,9 @@ function executeReset(){
     document.getElementById('wz-price').value='';
     document.getElementById('wz-midloan').value='';
     document.getElementById('wz-mid-rounds').value='6';
+    if(document.getElementById('wz-midloan-detail')) document.getElementById('wz-midloan-detail').style.display='block';
+    if(document.getElementById('wz-midloan-yes')) document.getElementById('wz-midloan-yes').className='tab active';
+    if(document.getElementById('wz-midloan-no')) document.getElementById('wz-midloan-no').className='tab';
     if(document.getElementById('wz-cash')) document.getElementById('wz-cash').value='';
     document.getElementById('wz-rate').value='5';
     document.getElementById('wz-term').value='40';
@@ -2341,7 +2392,7 @@ function executeReset(){
     if(document.getElementById('wz-option'))document.getElementById('wz-option').value='';
     if(document.getElementById('wz-aircon'))document.getElementById('wz-aircon').value='';
     document.getElementById('wz-type').value='';
-    document.getElementById('wz-balcony').checked=false;
+    document.getElementById('wz-balcony').checked=true;
     document.getElementById('wz-balcony-wrap').style.display='none';
     document.getElementById('wz-price-auto').value='';
     document.getElementById('wz-auto-desc').style.display='none';
@@ -2366,7 +2417,8 @@ function applyWizardData(){
   const moveDate = document.getElementById('wz-move-date').value;
   const hasBalcony = document.getElementById('wz-balcony').checked;
   const type = document.getElementById('wz-type').value;
-  const rounds = parseInt(document.getElementById('wz-mid-rounds').value) || 0;
+  const midloanDetailVisible = document.getElementById('wz-midloan-detail').style.display !== 'none';
+  const rounds = midloanDetailVisible ? (parseInt(document.getElementById('wz-mid-rounds').value) || 0) : 0;
 
   // 만원 단위로 변환 (기존 시스템 호환)
   const priceMW = Math.round(priceWon / 10000);
