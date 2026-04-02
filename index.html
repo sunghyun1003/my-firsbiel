@@ -540,16 +540,26 @@ tr:active td{background:rgba(255,255,255,.02);}
     </div>
   </div>
 
-  <!-- Step 3: 대출·소득 -->
+  <!-- Step 3: 보유현금·대출·소득 -->
   <div class="wizard-body" id="wz-step-3" style="display:none;">
-    <div class="wizard-title">주택담보대출 · 소득</div>
-    <div class="wizard-desc">대출과 소득 정보를 입력하세요. DSR 계산에 사용됩니다.<br>모든 항목은 나중에 언제든 수정할 수 있습니다.</div>
-    <div class="wizard-field">
-      <label class="wizard-label">주택담보대출 예정액 (원)</label>
-      <input class="wizard-input" id="wz-loan" type="text" inputmode="numeric" placeholder="예: 600,000,000" oninput="wzFormatPrice(this)" style="font-size:16px;">
-      <div class="wizard-hint">최대 6억원 (나중에 슬라이더로 조절 가능)</div>
-      <div class="wizard-later">나중에 변경 가능합니다</div>
+    <div class="wizard-title">보유현금 · 대출 · 소득</div>
+    <div class="wizard-desc">입주에 사용할 수 있는 현금과 대출 조건을 입력하세요.<br>입력한 정보로 필요 대출액이 자동 계산됩니다.</div>
+
+    <div style="background:rgba(184,230,54,.06);border:1px solid rgba(184,230,54,.2);border-radius:10px;padding:14px;margin-bottom:18px;">
+      <div style="font-size:13px;font-weight:700;color:var(--accent);margin-bottom:6px;">💰 보유현금</div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.5;margin-bottom:10px;">
+        입주에 사용할 수 있는 <strong style="color:var(--text)">여유 자금</strong>을 입력해 주세요.<br>
+        예적금, 주식 매도금, 부모님 지원 등을 모두 포함한 금액입니다.<br>
+        이 금액을 기준으로 <strong style="color:var(--text)">필요한 대출 금액이 자동 계산</strong>됩니다.
+      </div>
+      <div class="wizard-field" style="margin-bottom:0;">
+        <input class="wizard-input" id="wz-cash" type="text" inputmode="numeric" placeholder="예: 200,000,000" oninput="wzFormatPrice(this)" style="font-size:18px;font-weight:700;border:2px solid var(--accent);">
+      </div>
     </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+    <div style="font-size:13px;font-weight:700;margin-bottom:10px;">🏦 대출 조건 (DSR 계산용)</div>
+
     <div class="wizard-field">
       <label class="wizard-label">대출 금리 (연 %)</label>
       <input class="wizard-input" id="wz-rate" type="number" inputmode="decimal" value="5" step="0.01" style="font-size:16px;">
@@ -617,7 +627,6 @@ tr:active td{background:rgba(255,255,255,.02);}
       <img class="user-avatar" id="user-avatar" src="" alt="">
       <span class="user-name" id="user-name"></span>
       <span id="auto-save-indicator" style="font-size:9px;color:var(--paid);opacity:0;transition:opacity .5s;">✓ 자동저장됨</span>
-      <button class="btn-logout" onclick="toggleInfoPanel()" style="color:var(--text3)">ℹ️</button>
       <button class="btn-logout" onclick="confirmReset()" style="color:var(--due);border-color:rgba(240,160,48,.3)">초기화</button>
       <button class="btn-logout" onclick="logoutUser()">로그아웃</button>
     </div>
@@ -636,7 +645,8 @@ tr:active td{background:rgba(255,255,255,.02);}
   <div class="nav-item active" onclick="switchTab('budget')"><span class="nav-icon">💰</span><span class="nav-label">비용관리</span></div>
   <div class="nav-item" onclick="switchTab('items')"><span class="nav-icon">📦</span><span class="nav-label">가전·가구·시공</span></div>
   <div class="nav-item" onclick="switchTab('schedule')"><span class="nav-icon">📅</span><span class="nav-label">스케줄</span></div>
-  <div class="nav-item" onclick="switchTab('research')"><span class="nav-icon">🔍</span><span class="nav-label">메모</span></div>
+  <div class="nav-item" onclick="switchTab('research')"><span class="nav-icon">📝</span><span class="nav-label">메모</span></div>
+  <div class="nav-item" onclick="switchTab('more')"><span class="nav-icon">⋯</span><span class="nav-label">더보기</span></div>
 </div>
 
 <!-- ══ TAB 1: 입주비용관리 ══ -->
@@ -661,7 +671,7 @@ tr:active td{background:rgba(255,255,255,.02);}
     </div>
     <div class="lc-summary">
       <div class="lc-s-item"><div class="lc-s-label">총 필요액</div><div class="lc-s-value" id="lc-required">—</div></div>
-      <div class="lc-s-item"><div class="lc-s-label">보유현금</div><div class="lc-s-value" id="lc-surplus">—</div></div>
+      <div class="lc-s-item"><div class="lc-s-label">보유현금</div><div class="lc-s-value" style="color:var(--accent)" id="lc-cash">—</div></div>
       <div class="lc-s-item"><div class="lc-s-label">최소 대출</div><div class="lc-s-value" id="lc-minloan">—</div></div>
     </div>
     <div class="surplus-box positive" id="surplus-box" style="cursor:pointer;">
@@ -671,9 +681,9 @@ tr:active td{background:rgba(255,255,255,.02);}
       </div>
       <div><div class="sb-value" id="surplus-value">—</div></div>
     </div>
-    <button id="surplus-edit-toggle" onclick="editSurplusInline()" style="width:100%;padding:8px;background:none;border:1px dashed var(--border);border-radius:6px;color:var(--text3);font-size:10px;cursor:pointer;font-family:inherit;margin-bottom:8px;">✏️ 보유현금 직접 입력하기</button>
+    <button id="surplus-edit-toggle" onclick="editSurplusInline()" style="width:100%;padding:8px;background:none;border:1px dashed var(--border);border-radius:6px;color:var(--text3);font-size:10px;cursor:pointer;font-family:inherit;margin-bottom:8px;">✏️ 보유현금 수정</button>
     <div id="surplus-edit-box" style="display:none;margin-bottom:16px;background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:12px;">
-      <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">원하는 보유현금(만원)을 입력하면 대출 금액이 자동으로 조정됩니다 (최대 6억).</div>
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">보유현금(만원)을 입력하면 필요한 대출 금액이 자동으로 계산됩니다.</div>
       <div style="display:flex;gap:8px;align-items:center;">
         <input type="text" id="surplus-edit-input" class="wizard-input" inputmode="numeric" placeholder="예: 5000" style="font-size:14px;flex:1;margin:0;">
         <button onclick="applySurplusEdit()" style="background:var(--accent);color:#000;border:none;border-radius:6px;padding:10px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">적용</button>
@@ -879,6 +889,66 @@ tr:active td{background:rgba(255,255,255,.02);}
 </div>
 
 
+
+<!-- ══ TAB 5: 더보기 ══ -->
+<div class="tab-content" id="tab-more">
+  <div style="max-width:480px;margin:0 auto;">
+    
+    <!-- 앱 정보 -->
+    <div style="text-align:center;padding:20px 0 16px;">
+      <div style="font-size:11px;letter-spacing:.2em;color:var(--accent);font-weight:700;">인덕원 퍼스비엘</div>
+      <div style="font-size:20px;font-weight:900;margin-top:4px;">입주 관리</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:6px;">입주민 동료가 만든 무료 입주 관리 도구</div>
+    </div>
+
+    <!-- 자동저장 안내 -->
+    <div style="background:rgba(56,201,106,.06);border:1px solid rgba(56,201,106,.15);border-radius:10px;padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+      <span style="font-size:20px;">💾</span>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--paid);">자동저장</div>
+        <div style="font-size:10px;color:var(--text2);line-height:1.5;">모든 변경사항은 자동으로 저장됩니다.<br>다음 접속 시 마지막 상태에서 이어집니다.</div>
+      </div>
+    </div>
+
+    <!-- 피드백 -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px;">🐛 오류 신고 · 개선 제안</div>
+      <div style="font-size:10px;color:var(--text3);margin-bottom:8px;">사용 중 불편하거나 개선이 필요한 점을 알려주세요.</div>
+      <textarea id="feedback-text" rows="3" placeholder="예: 위자드에서 뒤로 가기가 안 돼요, 금액이 이상하게 표시돼요..." style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:12px;color:var(--text);font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea>
+      <button onclick="sendFeedback()" style="margin-top:8px;width:100%;padding:10px;background:var(--accent);color:#000;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">보내기</button>
+      <div id="feedback-result" style="font-size:10px;color:var(--paid);margin-top:6px;display:none;">✓ 감사합니다! 피드백이 전달되었습니다.</div>
+    </div>
+
+    <!-- 후원 -->
+    <div style="background:rgba(184,230,54,.03);border:1px solid rgba(184,230,54,.1);border-radius:10px;padding:14px;margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px;">☕ 커피 한 잔 사주기</div>
+      <div style="font-size:11px;color:var(--text3);line-height:1.6;margin-bottom:10px;">
+        유용하게 사용하셨다면 커피 한 잔으로 응원해 주세요.<br>
+        서버 유지비 등에 사용됩니다.
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button onclick="copyAccount()" style="flex:1;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--text);">
+          💳 계좌번호 복사
+        </button>
+        <button onclick="openKakaoPay()" style="flex:1;padding:10px;background:#FEE500;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;color:#000;">
+          카카오페이 송금
+        </button>
+      </div>
+      <div id="account-copied" style="font-size:10px;color:var(--paid);margin-top:6px;display:none;">✓ 계좌번호가 복사되었습니다!</div>
+    </div>
+
+    <!-- 기타 액션 -->
+    <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <button onclick="confirmReset()" style="flex:1;padding:12px;background:rgba(240,72,72,.06);border:1px solid rgba(240,72,72,.15);border-radius:8px;font-size:11px;color:var(--danger);cursor:pointer;font-family:inherit;font-weight:600;">🔄 데이터 초기화</button>
+      <button onclick="logoutUser()" style="flex:1;padding:12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:11px;color:var(--text2);cursor:pointer;font-family:inherit;">🚪 로그아웃</button>
+    </div>
+
+    <div style="font-size:9px;color:var(--text3);text-align:center;line-height:1.6;padding:8px 0;">
+      제작: 성현 · 문의: sunghyun1003@gmail.com<br>
+      데이터는 본인 구글 계정에만 저장됩니다
+    </div>
+  </div>
+</div>
 </div> <!-- /app-main -->
 
 <!-- ── 가격표 이미지 모달 (app-main 밖) ── -->
@@ -902,51 +972,6 @@ tr:active td{background:rgba(255,255,255,.02);}
   </div>
 </div>
 
-
-<!-- ── 정보·피드백·후원 패널 ── -->
-<div class="modal-overlay" id="info-panel-modal">
-  <div class="modal" style="max-width:440px;">
-    <div class="modal-handle"></div>
-    <div class="modal-title">앱 정보</div>
-    
-    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:16px;">
-      인덕원 퍼스비엘 입주 예정자를 위한<br>입주 관리 도구입니다.
-    </div>
-
-    <!-- 버그 신고 / 피드백 -->
-    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px;">
-      <div style="font-size:12px;font-weight:700;margin-bottom:8px;">🐛 오류 신고 · 개선 제안</div>
-      <textarea id="feedback-text" rows="3" placeholder="발생한 현상이나 개선 아이디어를 적어주세요" style="width:100%;background:var(--surface3);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:12px;color:var(--text);font-family:inherit;resize:vertical;box-sizing:border-box;"></textarea>
-      <button onclick="sendFeedback()" style="margin-top:8px;width:100%;padding:10px;background:var(--accent);color:#000;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">보내기</button>
-      <div id="feedback-result" style="font-size:10px;color:var(--paid);margin-top:6px;display:none;">✓ 감사합니다! 피드백이 전달되었습니다.</div>
-    </div>
-
-    <!-- 후원 (자연스럽게) -->
-    <div style="background:rgba(184,230,54,.04);border:1px solid rgba(184,230,54,.12);border-radius:10px;padding:14px;margin-bottom:12px;">
-      <div style="font-size:12px;font-weight:700;margin-bottom:4px;">☕ 커피 한 잔 사주기</div>
-      <div style="font-size:11px;color:var(--text3);line-height:1.6;margin-bottom:10px;">
-        이 앱은 입주민 동료가 무료로 만들었습니다.<br>
-        유용하게 사용하셨다면 커피 한 잔으로 응원해 주세요 ☕
-      </div>
-      <div style="display:flex;gap:8px;">
-        <button onclick="copyAccount()" style="flex:1;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--text);">
-          💳 계좌번호 복사
-        </button>
-        <button onclick="openKakaoPay()" style="flex:1;padding:10px;background:#FEE500;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;color:#000;">
-          카카오페이 송금
-        </button>
-      </div>
-      <div id="account-copied" style="font-size:10px;color:var(--paid);margin-top:6px;display:none;">✓ 계좌번호가 복사되었습니다!</div>
-    </div>
-    
-    <div style="font-size:9px;color:var(--text3);text-align:center;line-height:1.5;">
-      제작: 성현 · 데이터는 본인 구글 계정에만 저장됩니다<br>
-      문의: sunghyun1003@gmail.com
-    </div>
-
-    <div class="modal-footer" style="margin-top:12px;"><button class="btn-cancel" onclick="closeInfoPanel()">닫기</button></div>
-  </div>
-</div>
 
 <!-- ── 초기화 확인 모달 (app-main 밖) ── -->
 <div class="modal-overlay" id="reset-modal">
@@ -1165,7 +1190,7 @@ async function saveToFirestore(){
   try {
     const data = {
       version:3, wizardDone:true, savedAt:new Date().toISOString(),
-      loanAmount, paidItems, loanItems, cashItems, futureItems,
+      loanAmount, userCash, paidItems, loanItems, cashItems, futureItems,
       repaySettings, purchaseItems, scheduleItems, researchItems
     };
     await db.collection('users').doc(currentUser.uid).set(data);
@@ -1220,6 +1245,7 @@ async function loadFromFirestore(){
 // 전역 데이터 (빈 기본값 — 각 사용자가 직접 입력)
 // ══════════════════════════════════════
 let loanAmount = 60000;
+let userCash = 0;
 let paidItems = [];
 let loanItems = [];
 let cashItems = [];
@@ -1273,10 +1299,11 @@ function switchTab(name){
   document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   document.querySelectorAll('.bottom-nav .nav-item').forEach((el,i)=>{
-    el.classList.toggle('active',i==={budget:0,items:1,schedule:2,research:3}[name]);
+    el.classList.toggle('active',i==={budget:0,items:1,schedule:2,research:3,more:4}[name]);
   });
   if(name==='items') renderItemsTab();
   if(name==='research') renderResearch();
+  if(name==='more') document.getElementById('tab-more').style.display='block';
   if(name==='schedule'){
     calYear=new Date().getFullYear();calMonth=new Date().getMonth();
     renderSchedule();
@@ -1297,7 +1324,7 @@ function getLoanItemsTotal(){return loanItems.reduce((s,i)=>s+i.amount,0);}
 function getCashTotal(){return cashItems.reduce((s,i)=>s+i.amount,0);}
 function getRequired(){return getLoanItemsTotal()+getCashTotal();}
 function getTotalNeeded(){return getPaidTotal()+getRequired();}
-function getSurplus(){return loanAmount-getRequired();}
+function getSurplus(){return userCash + loanAmount - getRequired();}
 
 function updateBudget(){
   const paid=getPaidTotal(),needed=getTotalNeeded(),remain=needed-paid,surplus=getSurplus();
@@ -1305,9 +1332,9 @@ function updateBudget(){
   document.getElementById('kpi-paid').textContent=fmt(paid);
   document.getElementById('kpi-remain').textContent=fmt(remain);
   document.getElementById('lc-required').textContent=fmt(getRequired());
-  const ls=document.getElementById('lc-surplus');
-  ls.textContent=fmt(surplus);ls.style.color=surplus>=0?'var(--accent)':'var(--danger)';
-  document.getElementById('lc-minloan').textContent=fmt(getRequired());
+  document.getElementById('lc-cash').textContent=fmt(userCash);
+  const minLoan = Math.max(0, getRequired() - userCash);
+  document.getElementById('lc-minloan').textContent=fmt(Math.min(Math.ceil(minLoan/100)*100, 60000));
   const box=document.getElementById('surplus-box');
   box.className='surplus-box '+(surplus>=0?'positive':'negative');
   if(surplus>=0){
@@ -1497,7 +1524,7 @@ function addRow(type){
 }
 function delRow(type,idx){getArr(type).splice(idx,1);updateBudget();}
 function onSliderChange(val){loanAmount=parseInt(val);document.getElementById('slider-display').textContent=fmt(loanAmount);updateBudget();}
-function setMinLoan(){loanAmount=Math.min(Math.ceil(getRequired()/100)*100, 60000);document.getElementById('loan-slider').value=loanAmount;document.getElementById('slider-display').textContent=fmt(loanAmount);updateBudget();}
+function setMinLoan(){const ml=Math.max(0,getRequired()-userCash);loanAmount=Math.min(Math.ceil(ml/100)*100,60000);document.getElementById('loan-slider').value=loanAmount;document.getElementById('slider-display').textContent=fmt(loanAmount);updateBudget();}
 function setMaxLoan(){loanAmount=60000;document.getElementById('loan-slider').value=60000;document.getElementById('slider-display').textContent='6억원';updateBudget();}
 
 function editSurplusInline(){
@@ -1505,9 +1532,8 @@ function editSurplusInline(){
   if(!box) return;
   if(box.style.display==='none' || box.style.display===''){
     box.style.display='block';
-    const surplus = getSurplus();
     const inp = document.getElementById('surplus-edit-input');
-    inp.value = surplus > 0 ? Math.round(surplus).toLocaleString('ko-KR') : '';
+    inp.value = userCash > 0 ? Math.round(userCash).toLocaleString('ko-KR') : '';
     setTimeout(()=>inp.focus(), 100);
   } else {
     box.style.display='none';
@@ -1518,12 +1544,7 @@ function closeSurplusEdit(){
 }
 
 // ══ 정보 패널 ══
-function toggleInfoPanel(){
-  document.getElementById('info-panel-modal').classList.add('open');
-}
-function closeInfoPanel(){
-  document.getElementById('info-panel-modal').classList.remove('open');
-}
+// 정보 패널은 더보기 탭으로 이동됨
 function sendFeedback(){
   const text = document.getElementById('feedback-text').value.trim();
   if(!text){ showToast('내용을 입력해 주세요'); return; }
@@ -1545,8 +1566,7 @@ function sendFeedback(){
   }
 }
 function copyAccount(){
-  // 여기에 실제 계좌번호를 넣으세요
-  const account = '카카오뱅크 3333-00-0000000 (홍길동)';
+  const account = '카카오뱅크 3333077562833 양성현';
   navigator.clipboard.writeText(account).then(()=>{
     document.getElementById('account-copied').style.display='block';
     setTimeout(()=>{ document.getElementById('account-copied').style.display='none'; }, 3000);
@@ -1555,23 +1575,20 @@ function copyAccount(){
   });
 }
 function openKakaoPay(){
-  // 카카오페이 송금 링크 (실제 링크로 교체 필요)
-  window.open('https://qr.kakaopay.com/YOUR_LINK_HERE', '_blank');
+  window.open('https://qr.kakaopay.com/Ej88cLHLM', '_blank');
 }
 function applySurplusEdit(){
   const inp = document.getElementById('surplus-edit-input');
   const val = parseInt(inp.value.replace(/[^0-9]/g,'')) || 0;
-  // 보유현금 = 대출 - 필요액 → 대출 = 필요액 + 보유현금
-  const needed = getRequired();
-  let newLoan = needed + val;
-  // 6억 상한
-  newLoan = Math.min(newLoan, 60000);
-  loanAmount = Math.ceil(newLoan / 100) * 100;
+  // 보유현금 변경 → 필요 대출 자동 역산
+  userCash = val;
+  const minLoan = Math.max(0, getRequired() - userCash);
+  loanAmount = Math.min(Math.ceil(minLoan / 100) * 100, 60000);
   document.getElementById('loan-slider').value = loanAmount;
   document.getElementById('slider-display').textContent = fmt(loanAmount);
   updateBudget();
   closeSurplusEdit();
-  showToast('✅ 대출 금액이 ' + fmt(loanAmount) + '으로 조정되었습니다');
+  showToast('✅ 보유현금 ' + fmt(userCash) + ' 기준으로 대출이 조정되었습니다');
 }
 
 // ══ 가전/가구/시공 ══
@@ -1917,6 +1934,7 @@ function importFromText(){
   catch{showToast('❌ 형식 오류');}
 }
 function applyLoadedData(data){
+  if(data.userCash !== undefined) userCash = data.userCash;
   loanAmount=data.loanAmount??loanAmount;
   paidItems=data.paidItems??paidItems;loanItems=data.loanItems??loanItems;
   cashItems=data.cashItems??cashItems;futureItems=data.futureItems??futureItems;
@@ -1934,7 +1952,7 @@ function applyLoadedData(data){
 }
 
 // ══ 모달 바깥 클릭 닫기 ══
-['item-modal','sch-modal','export-modal','research-modal','reset-modal','price-guide-modal','info-panel-modal'].forEach(id=>{
+['item-modal','sch-modal','export-modal','research-modal','reset-modal','price-guide-modal'].forEach(id=>{
   const overlay=document.getElementById(id);
   let mdown=false;
   overlay.addEventListener('mousedown',function(e){mdown=(e.target===this);});
@@ -2137,7 +2155,8 @@ function openPriceGuide(type){
   };
 }
 function closePriceGuide(){ 
-  document.getElementById('price-guide-modal').classList.remove('open'); 
+  document.getElementById('price-guide-modal').classList.remove('open');
+  wzNavLock = true; setTimeout(()=>wzNavLock=false, 500);
 }
 
 // 이미지 확대 뷰어
@@ -2211,7 +2230,10 @@ function showWzStep(step){
   if(step===1) wzSubStep(1, wzSubSteps[1]||1);
 }
 
+let wzNavLock = false;
 function wizardNext(){
+  if(wzNavLock) return;
+  wzNavLock = true; setTimeout(()=>wzNavLock=false, 400);
   if(wzStep < WZ_TOTAL){
     showWzStep(wzStep + 1);
   } else {
@@ -2219,6 +2241,8 @@ function wizardNext(){
   }
 }
 function wizardBack(){
+  if(wzNavLock) return;
+  wzNavLock = true; setTimeout(()=>wzNavLock=false, 400);
   if(wzStep > 1) showWzStep(wzStep - 1);
 }
 function skipWizard(){
@@ -2240,7 +2264,7 @@ function executeReset(){
   closeResetModal();
   
   // 1. 데이터 초기화
-  loanAmount=60000; paidItems=[]; loanItems=[]; cashItems=[]; futureItems=[];
+  loanAmount=60000; userCash=0; paidItems=[]; loanItems=[]; cashItems=[]; futureItems=[];
   repaySettings={rate:3.5,term:30,income:5000,other:0};
   purchaseItems=[]; researchItems=[]; scheduleItems=[];
   debugLog('메모리 데이터 초기화 완료');
@@ -2265,7 +2289,7 @@ function executeReset(){
     document.getElementById('wz-price').value='';
     document.getElementById('wz-midloan').value='';
     document.getElementById('wz-mid-rounds').value='6';
-    document.getElementById('wz-loan').value='';
+    if(document.getElementById('wz-cash')) document.getElementById('wz-cash').value='';
     document.getElementById('wz-rate').value='5';
     document.getElementById('wz-term').value='40';
     document.getElementById('wz-income').value='';
@@ -2291,7 +2315,7 @@ function executeReset(){
 function applyWizardData(){
   const priceWon = wzParseWon(document.getElementById('wz-price'));
   const midloanWon = wzParseWon(document.getElementById('wz-midloan'));
-  const loanWon = wzParseWon(document.getElementById('wz-loan'));
+  const cashOnHand = wzParseWon(document.getElementById('wz-cash'));
   const optionWon = wzParseWon(document.getElementById('wz-option'));
   const airconWon = wzParseWon(document.getElementById('wz-aircon'));
   const rate = parseFloat(document.getElementById('wz-rate').value) || 5;
@@ -2307,13 +2331,13 @@ function applyWizardData(){
   // 만원 단위로 변환 (기존 시스템 호환)
   const priceMW = Math.round(priceWon / 10000);
   const midloanMW = Math.round(midloanWon / 10000);
-  const loanMW = loanWon > 0 ? Math.min(Math.round(loanWon / 10000), 60000) : 60000;
+  const cashMW = Math.round(cashOnHand / 10000);
   const optionMW = Math.round(optionWon / 10000);
   const airconMW = Math.round(airconWon / 10000);
   const incomeMW = Math.round(incomeWon / 10000);
 
-  // 대출 설정
-  loanAmount = loanMW;
+  // 보유현금 저장
+  userCash = cashMW;
   repaySettings = {rate, term, income:incomeMW, other:0};
 
   // ═══ 납부 완료 항목 (paidItems) ═══
@@ -2386,6 +2410,12 @@ function applyWizardData(){
   if(inspectDate) scheduleItems.push({name:'사전점검', date:inspectDate, time:'', desc:'아파트 하자 확인', priority:'important'});
   if(balanceDate) scheduleItems.push({name:'잔금 납부', date:balanceDate, time:'', desc:'중도금 대출 → 주택담보대출 전환', priority:'important'});
   if(moveDate) scheduleItems.push({name:'이사', date:moveDate, time:'', desc:'실제 이사 및 입주', priority:'important'});
+
+  // 보유현금 기반 필요 대출 자동 계산
+  // 필요대출 = 납부필요총액 - 보유현금 (최소 0, 최대 6억)
+  const needForLoan = getRequired(); // loanItems + cashItems 합계
+  const calcLoan = Math.max(0, needForLoan - userCash);
+  loanAmount = Math.min(Math.ceil(calcLoan / 100) * 100, 60000);
 
   // UI 반영
   document.getElementById('loan-slider').value = loanAmount;
