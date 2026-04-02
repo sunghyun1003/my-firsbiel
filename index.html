@@ -1328,9 +1328,19 @@ function getSurplus(){return userCash + loanAmount - getRequired();}
 
 function updateBudget(){
   const paid=getPaidTotal(),needed=getTotalNeeded(),remain=needed-paid,surplus=getSurplus();
-  document.getElementById('kpi-total').textContent=fmt(needed);
-  document.getElementById('kpi-paid').textContent=fmt(paid);
-  document.getElementById('kpi-remain').textContent=fmt(remain);
+  // KPI 업데이트 + 변경 시 깜빡임 효과
+  const kpis = [
+    {el:document.getElementById('kpi-total'), val:fmt(needed)},
+    {el:document.getElementById('kpi-paid'), val:fmt(paid)},
+    {el:document.getElementById('kpi-remain'), val:fmt(remain)}
+  ];
+  kpis.forEach(k=>{
+    if(k.el.textContent !== k.val && k.el.textContent !== '—'){
+      k.el.style.transition='none'; k.el.style.opacity='0.3';
+      setTimeout(()=>{ k.el.style.transition='opacity .4s'; k.el.style.opacity='1'; },50);
+    }
+    k.el.textContent = k.val;
+  });
   document.getElementById('lc-required').textContent=fmt(getRequired());
   document.getElementById('lc-cash').textContent=fmt(userCash);
   const minLoan = Math.max(0, getRequired() - userCash);
@@ -1575,7 +1585,13 @@ function copyAccount(){
   });
 }
 function openKakaoPay(){
-  window.open('https://qr.kakaopay.com/Ej88cLHLM', '_blank');
+  // PC에서는 새 탭, 모바일에서는 카카오페이 앱으로 연결
+  const url = 'https://qr.kakaopay.com/Ej88cLHLM';
+  const w = window.open(url, '_blank');
+  if(!w || w.closed){
+    // 팝업 차단 시 현재 창에서 이동
+    location.href = url;
+  }
 }
 function applySurplusEdit(){
   const inp = document.getElementById('surplus-edit-input');
@@ -1954,11 +1970,25 @@ function applyLoadedData(data){
 // ══ 모달 바깥 클릭 닫기 ══
 ['item-modal','sch-modal','export-modal','research-modal','reset-modal','price-guide-modal'].forEach(id=>{
   const overlay=document.getElementById(id);
+  if(!overlay) return;
   let mdown=false;
   overlay.addEventListener('mousedown',function(e){mdown=(e.target===this);});
-  overlay.addEventListener('mouseup',function(e){if(mdown&&e.target===this){e.stopPropagation();this.classList.remove('open');}mdown=false;});
+  overlay.addEventListener('mouseup',function(e){
+    if(mdown&&e.target===this){
+      e.stopPropagation(); e.preventDefault();
+      this.classList.remove('open');
+      if(typeof wzNavLock!=='undefined'){wzNavLock=true;setTimeout(()=>wzNavLock=false,600);}
+    }
+    mdown=false;
+  });
   overlay.addEventListener('touchstart',function(e){mdown=(e.target===this);},{passive:true});
-  overlay.addEventListener('touchend',function(e){if(mdown&&e.target===this){this.classList.remove('open');}mdown=false;},{passive:true});
+  overlay.addEventListener('touchend',function(e){
+    if(mdown&&e.target===this){
+      this.classList.remove('open');
+      if(typeof wzNavLock!=='undefined'){wzNavLock=true;setTimeout(()=>wzNavLock=false,600);}
+    }
+    mdown=false;
+  },{passive:true});
 });
 
 // ══ 초기화 ══
@@ -2141,6 +2171,21 @@ function openPriceGuide(type){
   // 페이지 인디케이터 (현재 몇 번째 이미지인지)
   dots.innerHTML = imgs.map((_,i)=>'<div style="width:6px;height:6px;border-radius:50%;background:var(--border2);"></div>').join('');
   modal.classList.add('open');
+  // PC 마우스 드래그 스크롤
+  let isDragging=false, startY=0, scrollStart=0;
+  content.style.cursor='grab';
+  content.onmousedown=function(e){
+    isDragging=true; startY=e.clientY; scrollStart=content.scrollTop;
+    content.style.cursor='grabbing'; content.style.userSelect='none';
+    e.preventDefault();
+  };
+  document.onmousemove=function(e){
+    if(!isDragging) return;
+    content.scrollTop = scrollStart - (e.clientY - startY);
+  };
+  document.onmouseup=function(){
+    if(isDragging){ isDragging=false; content.style.cursor='grab'; content.style.userSelect=''; }
+  };
   // 스크롤 위치에 따라 인디케이터 업데이트
   content.onscroll = function(){
     const imgEls = content.querySelectorAll('img');
