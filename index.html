@@ -413,80 +413,56 @@ tr:active td{background:rgba(255,255,255,.02);}
   <!-- Step 1: 분양 정보 -->
   <div class="wizard-body" id="wz-step-1">
     <div class="wizard-title">분양 정보 입력</div>
-    <div class="wizard-desc">분양가와 발코니 확장 정보를 입력해 주세요.<br>모든 항목은 나중에 언제든 수정할 수 있습니다.</div>
+    <div class="wizard-desc">타입, 분양가, 발코니 확장 정보를 입력해 주세요.</div>
 
-    <!-- 서브스텝 인디케이터 -->
-    <div id="wz1-substep-bar" style="display:flex;gap:4px;margin-bottom:16px;">
-      <div class="wz-substep active" id="wz1-dot-1" onclick="wzSubStep(1,1)"><span class="wz-substep-num">1</span> 타입</div>
-      <div class="wz-substep" id="wz1-dot-2" onclick="wzSubStep(1,2)"><span class="wz-substep-num">2</span> 분양가</div>
-      <div class="wz-substep" id="wz1-dot-3" onclick="wzSubStep(1,3)"><span class="wz-substep-num">3</span> 발코니</div>
+    <div class="wizard-field">
+      <label class="wizard-label">① 타입 선택</label>
+      <select class="wizard-select" id="wz-type" onchange="wzTypeSelect();wzValidateStep1()" style="font-size:16px;padding:14px;">
+        <option value="">선택하세요</option>
+        <option value="49A">49A</option><option value="49B">49B</option>
+        <option value="59A">59A</option><option value="59B">59B</option>
+        <option value="74">74</option><option value="84A">84A</option>
+      </select>
     </div>
 
-    <!-- 서브스텝 1: 타입 선택 -->
-    <div id="wz1-sub-1">
-      <div class="wizard-field">
-        <label class="wizard-label">타입 선택</label>
-        <select class="wizard-select" id="wz-type" onchange="wzTypeSelect()" style="font-size:16px;padding:14px;">
-          <option value="">선택하세요</option>
-          <option value="49A">49A</option><option value="49B">49B</option>
-          <option value="59A">59A</option><option value="59B">59B</option>
-          <option value="74">74</option><option value="84A">84A</option>
-        </select>
-        <div class="wizard-hint" style="margin-top:8px;">👆 계약한 타입을 선택한 후 상단의 <strong>② 분양가</strong>를 눌러주세요</div>
+    <div class="wizard-field">
+      <label class="wizard-label">② 분양가</label>
+      <div style="display:flex;gap:6px;margin-bottom:4px;">
+        <button class="tab active" id="wz-price-tab-direct" onclick="wzPriceMode('direct',this)" style="flex:1;padding:10px;font-size:12px;">수동 입력</button>
+        <button class="tab" id="wz-price-tab-type" onclick="wzPriceMode('type',this)" style="flex:1;padding:10px;font-size:12px;">자동 입력</button>
       </div>
-    </div>
-
-    <!-- 서브스텝 2: 분양가 입력 -->
-    <div id="wz1-sub-2" style="display:none;">
-      <div class="wizard-field">
-        <label class="wizard-label">분양가 입력 방식</label>
-        <div style="display:flex;gap:6px;margin-bottom:4px;">
-          <button class="tab active" id="wz-price-tab-direct" onclick="wzPriceMode('direct',this)" style="flex:1;padding:10px;font-size:12px;">수동 입력</button>
-          <button class="tab" id="wz-price-tab-type" onclick="wzPriceMode('type',this)" style="flex:1;padding:10px;font-size:12px;">자동 입력</button>
-        </div>
-        <div id="wz-auto-desc" style="display:none;font-size:10px;color:var(--text3);line-height:1.5;margin-top:4px;padding:8px 10px;background:var(--surface2);border-radius:6px;">
-          정확한 분양가를 모를 때 선택해 주세요.<br>각 타입의 최고 분양가 기준으로 자동 계산됩니다.
-        </div>
+      <div id="wz-auto-desc" style="display:none;font-size:10px;color:var(--text3);line-height:1.5;margin-top:4px;padding:8px 10px;background:var(--surface2);border-radius:6px;">
+        정확한 분양가를 모를 때 선택하세요. 최고 분양가 기준으로 자동 계산됩니다.
       </div>
       <div id="wz-price-direct">
-        <div class="wizard-field">
-          <label class="wizard-label">분양가 (원)</label>
-          <input class="wizard-input" id="wz-price" type="text" inputmode="numeric" placeholder="예: 564,000,000" oninput="wzFormatPrice(this);updateWzCalc()" style="font-size:16px;">
-          <div class="wizard-hint">계약서에 기재된 공급금액을 입력하세요</div>
-        </div>
+        <input class="wizard-input" id="wz-price" type="text" inputmode="numeric" placeholder="예: 564,000,000" oninput="wzFormatPrice(this);updateWzCalc();wzValidateStep1()" style="font-size:16px;">
+        <div class="wizard-hint">계약서에 기재된 공급금액</div>
       </div>
       <div id="wz-price-type" style="display:none;">
-        <div class="wizard-field">
-          <label class="wizard-label">분양가 (자동)</label>
-          <input class="wizard-input" id="wz-price-auto" type="text" readonly style="font-size:16px;color:var(--accent);background:var(--surface3);">
-          <div class="wizard-later">정확한 금액은 계약서 확인 후 비용관리 탭에서 수정하세요</div>
-        </div>
+        <input class="wizard-input" id="wz-price-auto" type="text" readonly style="font-size:16px;color:var(--accent);background:var(--surface3);">
+        <div class="wizard-later">정확한 금액은 나중에 비용관리 탭에서 수정 가능</div>
       </div>
-      <button onclick="wzSubStep(1,3)" style="margin-top:12px;width:100%;padding:12px;background:var(--accent);color:#000;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">다음: 발코니 확장 →</button>
     </div>
 
-    <!-- 서브스텝 3: 발코니 확장 -->
-    <div id="wz1-sub-3" style="display:none;">
-      <div id="wz-balcony-wrap" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;">
-        <div style="background:rgba(184,230,54,.08);border:1px solid rgba(184,230,54,.2);border-radius:8px;padding:10px 12px;margin-bottom:12px;">
-          <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:4px;">✅ 발코니 확장을 신청하셨나요?</div>
-          <div style="font-size:11px;color:var(--text2);line-height:1.5;">발코니 확장을 신청한 경우 아래 체크박스를 체크해 주세요.<br>확장비가 총 비용에 포함됩니다.</div>
-        </div>
+    <div class="wizard-field" id="wz-balcony-wrap" style="display:none;">
+      <label class="wizard-label">③ 발코니 확장</label>
+      <div style="background:rgba(184,230,54,.06);border:1px solid rgba(184,230,54,.15);border-radius:8px;padding:12px;">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
           <input type="checkbox" id="wz-balcony" onchange="updateWzCalc()" style="width:22px;height:22px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
           <div>
-            <div style="font-size:14px;font-weight:700;color:var(--text);">발코니 확장 선택</div>
+            <div style="font-size:13px;font-weight:700;color:var(--text);">발코니 확장 신청함</div>
             <div style="font-size:11px;color:var(--due);margin-top:2px;font-family:'JetBrains Mono',monospace;" id="wz-balcony-price"></div>
           </div>
         </label>
       </div>
+    </div>
 
-      <div style="font-size:11px;color:var(--due);margin-top:16px;margin-bottom:6px;font-weight:600;">📋 입력한 값이 맞는지 아래에서 확인해 주세요.</div>
-      <div class="wizard-calc-box" id="wz-calc-1" style="display:none;">
-        <div class="wizard-calc-row"><span class="wizard-calc-label">분양가</span><span class="wizard-calc-value" id="wz-c-price">—</span></div>
-        <div class="wizard-calc-row" id="wz-c-balcony-row" style="display:none;"><span class="wizard-calc-label">발코니 확장비</span><span class="wizard-calc-value" style="color:var(--purple)" id="wz-c-balcony">—</span></div>
-        <div class="wizard-calc-row"><span class="wizard-calc-label">계약금 (10%)</span><span class="wizard-calc-value" style="color:var(--paid)" id="wz-c-deposit">—</span></div>
-      </div>
+    <div id="wz1-validation-msg" style="display:none;background:rgba(240,72,72,.06);border:1px solid rgba(240,72,72,.15);border-radius:6px;padding:8px 12px;margin-top:12px;font-size:11px;color:var(--danger);">타입과 분양가를 입력해야 다음으로 진행할 수 있습니다.</div>
+
+    <div class="wizard-calc-box" id="wz-calc-1" style="display:none;margin-top:12px;">
+      <div class="wizard-calc-row"><span class="wizard-calc-label">분양가</span><span class="wizard-calc-value" id="wz-c-price">—</span></div>
+      <div class="wizard-calc-row" id="wz-c-balcony-row" style="display:none;"><span class="wizard-calc-label">발코니 확장비</span><span class="wizard-calc-value" style="color:var(--purple)" id="wz-c-balcony">—</span></div>
+      <div class="wizard-calc-row"><span class="wizard-calc-label">계약금 (10%)</span><span class="wizard-calc-value" style="color:var(--paid)" id="wz-c-deposit">—</span></div>
     </div>
   </div>
 
@@ -626,9 +602,7 @@ tr:active td{background:rgba(255,255,255,.02);}
     <div class="user-bar" id="user-bar">
       <img class="user-avatar" id="user-avatar" src="" alt="">
       <span class="user-name" id="user-name"></span>
-      <span id="auto-save-indicator" style="font-size:9px;color:var(--paid);opacity:0;transition:opacity .5s;">✓ 자동저장됨</span>
-      <button class="btn-logout" onclick="confirmReset()" style="color:var(--due);border-color:rgba(240,160,48,.3)">초기화</button>
-      <button class="btn-logout" onclick="logoutUser()">로그아웃</button>
+      <span id="auto-save-indicator" style="font-size:9px;color:var(--paid);opacity:0;transition:opacity .5s;">✓ 저장됨</span>
     </div>
   </div>
 </div>
@@ -1303,7 +1277,7 @@ function switchTab(name){
   });
   if(name==='items') renderItemsTab();
   if(name==='research') renderResearch();
-  if(name==='more') document.getElementById('tab-more').style.display='block';
+  // more 탭은 .active 클래스로 제어됨
   if(name==='schedule'){
     calYear=new Date().getFullYear();calMonth=new Date().getMonth();
     renderSchedule();
@@ -1557,9 +1531,11 @@ function closeSurplusEdit(){
 // 정보 패널은 더보기 탭으로 이동됨
 function sendFeedback(){
   const text = document.getElementById('feedback-text').value.trim();
-  if(!text){ showToast('내용을 입력해 주세요'); return; }
-  // Firestore에 피드백 저장 (관리자가 확인)
-  if(currentUser){
+  if(!text){ showToast('⚠️ 내용을 입력해 주세요'); return; }
+  if(!currentUser){ showToast('로그인이 필요합니다'); return; }
+  // Firestore에 피드백 저장
+  showToast('📤 전송 중...');
+  {
     db.collection('feedback').add({
       uid: currentUser.uid,
       email: currentUser.email || '',
@@ -2271,19 +2247,38 @@ function showWzStep(step){
   document.getElementById('wz-progress').style.width = (step/WZ_TOTAL*100)+'%';
   document.getElementById('wz-btn-back').style.display = step > 1 ? '' : 'none';
   document.getElementById('wz-btn-next').textContent = step === WZ_TOTAL ? '완료' : '다음';
-  // 서브스텝이 있는 스텝은 첫 서브스텝으로 초기화
-  if(step===1) wzSubStep(1, wzSubSteps[1]||1);
+  // 스크롤 최상단으로
+  const body = document.getElementById('wz-step-'+step);
+  if(body) body.scrollTop = 0;
+  document.querySelector('.wizard-overlay')?.scrollTo(0,0);
 }
 
 let wzNavLock = false;
 function wizardNext(){
   if(wzNavLock) return;
   wzNavLock = true; setTimeout(()=>wzNavLock=false, 400);
+  // 스텝1 유효성 검사: 타입 + 분양가 필수
+  if(wzStep===1){
+    const typeOk = document.getElementById('wz-type').value !== '';
+    const priceOk = wzParseWon(document.getElementById('wz-price')) > 0;
+    if(!typeOk || !priceOk){
+      document.getElementById('wz1-validation-msg').style.display='block';
+      wzNavLock=false;
+      return;
+    }
+    document.getElementById('wz1-validation-msg').style.display='none';
+  }
   if(wzStep < WZ_TOTAL){
     showWzStep(wzStep + 1);
   } else {
     applyWizardData();
   }
+}
+
+function wzValidateStep1(){
+  const typeOk = document.getElementById('wz-type').value !== '';
+  const priceOk = wzParseWon(document.getElementById('wz-price')) > 0;
+  if(typeOk && priceOk) document.getElementById('wz1-validation-msg').style.display='none';
 }
 function wizardBack(){
   if(wzNavLock) return;
@@ -2347,11 +2342,11 @@ function executeReset(){
     if(document.getElementById('wz-aircon'))document.getElementById('wz-aircon').value='';
     document.getElementById('wz-type').value='';
     document.getElementById('wz-balcony').checked=false;
-    document.getElementById('wz-balcony-wrap').style.display='block';
+    document.getElementById('wz-balcony-wrap').style.display='none';
     document.getElementById('wz-price-auto').value='';
     document.getElementById('wz-auto-desc').style.display='none';
     wzPriceMode('direct',document.getElementById('wz-price-tab-direct'));
-    wzSubSteps[1]=1; wzSubStep(1,1);
+    // 서브스텝 제거됨
   } catch(e){ debugLog('필드 초기화 중 에러: ' + e.message); }
   
   showToast('🔄 초기화 완료');
@@ -2392,13 +2387,14 @@ function applyWizardData(){
     const depositMW = priceMW * 0.1;
     paidItems.push({name:'계약금', amount:depositMW, note:'분양가의 10%'});
 
-    // 2) 중도금 자납분: 분양가의 60% - 중도금대출잔액 = 본인이 직접 낸 금액
-    const midTotalMW = priceMW * 0.6; // 중도금 총액 (분양가의 60%)
-    if(midloanMW < midTotalMW){
-      // 중도금 대출이 60%보다 적으면, 차액은 본인이 직접 납부한 것
-      const selfPaidMid = midTotalMW - midloanMW;
-      if(selfPaidMid > 0){
-        paidItems.push({name:'중도금 자납분', amount:selfPaidMid, note:'중도금 총액 − 대출액'});
+    // 2) 중도금 자납분: 대출 회차가 있는 경우만 계산
+    if(rounds > 0){
+      const midTotalMW = priceMW * 0.6; // 중도금 총액 (분양가의 60%)
+      if(midloanMW < midTotalMW){
+        const selfPaidMid = midTotalMW - midloanMW;
+        if(selfPaidMid > 0){
+          paidItems.push({name:'중도금 자납분', amount:selfPaidMid, note:'중도금 총액 − 대출액'});
+        }
       }
     }
   }
@@ -2415,7 +2411,7 @@ function applyWizardData(){
   loanItems = [];
   if(priceMW > 0){
     // 중도금 대출 상환 (대출받은 금액은 잔금일에 주담대로 전환)
-    if(midloanMW > 0) loanItems.push({name:'중도금 대출 상환', amount:midloanMW, note:'주택담보대출로 자동 처리'});
+    if(rounds > 0 && midloanMW > 0) loanItems.push({name:'중도금 대출 상환', amount:midloanMW, note:'주택담보대출로 자동 처리'});
     // 분양가 잔금 (분양가의 30%)
     const balanceMW = priceMW * 0.3;
     if(balanceMW > 0) loanItems.push({name:'분양가 잔금', amount:balanceMW, note:'분양가의 30%'});
@@ -2435,7 +2431,7 @@ function applyWizardData(){
   }
   // 에어컨은 이미 납부 완료
   // 중도금 후불이자
-  if(priceMW > 0 && midloanMW > 0){
+  if(priceMW > 0 && rounds > 0 && midloanMW > 0){
     const finalBalanceDate = balanceDate || '2026-06-22';
     const interest = calcMidInterest(priceMW, finalBalanceDate, rounds);
     if(interest > 0) cashItems.push({name:'중도금 후불이자', amount:interest, note:'추정치 (실제 금액과 차이가 있을 수 있음)', est:true});
