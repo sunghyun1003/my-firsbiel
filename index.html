@@ -659,11 +659,11 @@ tr:active td{background:rgba(255,255,255,.02);}
     </div>
     <div class="lc-summary">
       <div class="lc-s-item"><div class="lc-s-label">총 필요액</div><div class="lc-s-value" id="lc-required">—</div></div>
-      <div class="lc-s-item"><div class="lc-s-label">자유자금</div><div class="lc-s-value" id="lc-surplus">—</div></div>
+      <div class="lc-s-item"><div class="lc-s-label">보유현금</div><div class="lc-s-value" id="lc-surplus">—</div></div>
       <div class="lc-s-item"><div class="lc-s-label">최소 대출</div><div class="lc-s-value" id="lc-minloan">—</div></div>
     </div>
     <div class="surplus-box positive" id="surplus-box">
-      <div><div class="sb-label" id="surplus-label">💰 대출 후 남는 자유 자금</div><div class="sb-desc">가전·가구·시공·예비비 활용</div></div>
+      <div><div class="sb-label" id="surplus-label">💰 대출 후 보유현금</div><div class="sb-desc">가전·가구·시공·예비비 활용</div></div>
       <div><div class="sb-value" id="surplus-value">—</div></div>
     </div>
     <hr class="divider">
@@ -1104,7 +1104,7 @@ async function saveToFirestore(){
   if(!currentUser) return;
   try {
     const data = {
-      version:3, savedAt:new Date().toISOString(),
+      version:3, wizardDone:true, savedAt:new Date().toISOString(),
       loanAmount, paidItems, loanItems, cashItems, futureItems,
       repaySettings, purchaseItems, scheduleItems, researchItems
     };
@@ -1119,7 +1119,8 @@ async function loadFromFirestore(){
     debugLog('Firestore 문서 존재: ' + doc.exists);
     if(doc.exists){
       const data = doc.data();
-      const hasRealData = (data.paidItems && data.paidItems.length > 0) || 
+      const hasRealData = data.wizardDone === true ||
+                          (data.paidItems && data.paidItems.length > 0) || 
                           (data.loanItems && data.loanItems.length > 0) ||
                           (data.cashItems && data.cashItems.length > 0) ||
                           (data.scheduleItems && data.scheduleItems.length > 0) ||
@@ -1244,7 +1245,7 @@ function updateBudget(){
   const box=document.getElementById('surplus-box');
   box.className='surplus-box '+(surplus>=0?'positive':'negative');
   document.getElementById('surplus-value').textContent=fmt(surplus);
-  document.getElementById('surplus-label').textContent=surplus>=0?'💰 대출 후 남는 자유 자금':'⚠️ 대출 부족 — 추가 현금 필요';
+  document.getElementById('surplus-label').textContent=surplus>=0?'💰 대출 후 보유현금':'⚠️ 대출 부족 — 추가 현금 필요';
   document.getElementById('paid-total-disp').textContent=fmt(paid);
   const needTotal = getLoanItemsTotal()+getCashTotal();
   document.getElementById('need-items-total').textContent=fmt(needTotal);
@@ -1371,7 +1372,7 @@ function renderWaterfall(){
   cashItems.forEach((it,i)=>{html+=`<div class="wf-row" style="background:rgba(240,160,48,.03)"><div class="wf-label" style="color:var(--due)">${nums[loanItems.length+i]} ${it.name}</div><div class="wf-bar-wrap"><div class="wf-bar" style="width:${pct(it.amount)}%;background:var(--due)"></div></div><div class="wf-amount" style="color:var(--due)">− ${fmt(it.amount)}</div></div>`;});
   html+='<div class="wf-arrow">↓</div>';
   html+=surplus>=0
-    ?`<div class="wf-row total-row"><div class="wf-label" style="color:var(--accent);font-weight:700">💰 남는 자유 자금</div><div class="wf-bar-wrap"><div class="wf-bar" style="width:${pct(surplus)}%;background:var(--accent)"></div></div><div class="wf-amount" style="color:var(--accent)">+ ${fmt(surplus)}</div></div>`
+    ?`<div class="wf-row total-row"><div class="wf-label" style="color:var(--accent);font-weight:700">💰 보유현금</div><div class="wf-bar-wrap"><div class="wf-bar" style="width:${pct(surplus)}%;background:var(--accent)"></div></div><div class="wf-amount" style="color:var(--accent)">+ ${fmt(surplus)}</div></div>`
     :`<div class="wf-row negative-row"><div class="wf-label" style="color:var(--danger);font-weight:700">⚠️ 대출 부족</div><div class="wf-bar-wrap"></div><div class="wf-amount" style="color:var(--danger)">− ${fmt(Math.abs(surplus))}</div></div>`;
   document.getElementById('waterfall-content').innerHTML=html;
 }
@@ -1419,8 +1420,39 @@ function addRow(type){
 }
 function delRow(type,idx){getArr(type).splice(idx,1);updateBudget();}
 function onSliderChange(val){loanAmount=parseInt(val);document.getElementById('slider-display').textContent=fmt(loanAmount);updateBudget();}
-function setMinLoan(){loanAmount=Math.ceil(getRequired()/100)*100;document.getElementById('loan-slider').value=loanAmount;document.getElementById('slider-display').textContent=fmt(loanAmount);updateBudget();}
+function setMinLoan(){loanAmount=Math.min(Math.ceil(getRequired()/100)*100, 60000);document.getElementById('loan-slider').value=loanAmount;document.getElementById('slider-display').textContent=fmt(loanAmount);updateBudget();}
 function setMaxLoan(){loanAmount=60000;document.getElementById('loan-slider').value=60000;document.getElementById('slider-display').textContent='6억원';updateBudget();}
+
+function editSurplusInline(){
+  const box = document.getElementById('surplus-edit-box');
+  if(box.style.display==='none'){
+    box.style.display='block';
+    const surplus = getSurplus();
+    const inp = document.getElementById('surplus-edit-input');
+    inp.value = surplus > 0 ? Math.round(surplus).toLocaleString('ko-KR') : '';
+    inp.focus();
+  } else {
+    box.style.display='none';
+  }
+}
+function closeSurplusEdit(){
+  document.getElementById('surplus-edit-box').style.display='none';
+}
+function applySurplusEdit(){
+  const inp = document.getElementById('surplus-edit-input');
+  const val = parseInt(inp.value.replace(/[^0-9]/g,'')) || 0;
+  // 보유현금 = 대출 - 필요액 → 대출 = 필요액 + 보유현금
+  const needed = getRequired();
+  let newLoan = needed + val;
+  // 6억 상한
+  newLoan = Math.min(newLoan, 60000);
+  loanAmount = Math.ceil(newLoan / 100) * 100;
+  document.getElementById('loan-slider').value = loanAmount;
+  document.getElementById('slider-display').textContent = fmt(loanAmount);
+  updateBudget();
+  closeSurplusEdit();
+  showToast('✅ 대출 금액이 ' + fmt(loanAmount) + '으로 조정되었습니다');
+}
 
 // ══ 가전/가구/시공 ══
 const catLabel={appliance:'가전',furniture:'가구',construction:'시공',etc:'기타'};
@@ -1786,9 +1818,9 @@ function applyLoadedData(data){
   const overlay=document.getElementById(id);
   let mdown=false;
   overlay.addEventListener('mousedown',function(e){mdown=(e.target===this);});
-  overlay.addEventListener('mouseup',function(e){if(mdown&&e.target===this)this.classList.remove('open');mdown=false;});
+  overlay.addEventListener('mouseup',function(e){if(mdown&&e.target===this){e.stopPropagation();this.classList.remove('open');}mdown=false;});
   overlay.addEventListener('touchstart',function(e){mdown=(e.target===this);},{passive:true});
-  overlay.addEventListener('touchend',function(e){if(mdown&&e.target===this)this.classList.remove('open');mdown=false;},{passive:true});
+  overlay.addEventListener('touchend',function(e){if(mdown&&e.target===this){this.classList.remove('open');}mdown=false;},{passive:true});
 });
 
 // ══ 초기화 ══
@@ -2191,6 +2223,10 @@ function applyWizardData(){
   if(optionMW > 0){
     paidItems.push({name:'유상옵션 계약금', amount:150, note:'유상옵션 신청 시 정액'});
   }
+  // 4) 시스템 에어컨: 이미 납부 완료
+  if(airconMW > 0){
+    paidItems.push({name:'시스템 에어컨', amount:airconMW, note:'LG 시스템 에어컨 (납부 완료)'});
+  }
 
   // ═══ 납부 필요 - 대출 처리 항목 (loanItems) ═══
   loanItems = [];
@@ -2214,8 +2250,7 @@ function applyWizardData(){
     const optionBalance = optionMW - 150;
     if(optionBalance > 0) cashItems.push({name:'유상옵션 잔금', amount:optionBalance, note:'옵션 총액 − 계약금 150만원'});
   }
-  // 에어컨
-  if(airconMW > 0) cashItems.push({name:'시스템 에어컨', amount:airconMW, note:'LG 시스템 에어컨'});
+  // 에어컨은 이미 납부 완료
   // 중도금 후불이자
   if(priceMW > 0 && midloanMW > 0){
     const finalBalanceDate = balanceDate || '2026-06-22';
