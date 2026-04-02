@@ -616,6 +616,7 @@ tr:active td{background:rgba(255,255,255,.02);}
     <div class="user-bar" id="user-bar">
       <img class="user-avatar" id="user-avatar" src="" alt="">
       <span class="user-name" id="user-name"></span>
+      <span id="auto-save-indicator" style="font-size:9px;color:var(--paid);opacity:0;transition:opacity .5s;">✓ 자동저장됨</span>
       <button class="btn-logout" onclick="confirmReset()" style="color:var(--due);border-color:rgba(240,160,48,.3)">초기화</button>
       <button class="btn-logout" onclick="logoutUser()">로그아웃</button>
     </div>
@@ -632,9 +633,9 @@ tr:active td{background:rgba(255,255,255,.02);}
 <!-- ── 하단 네비게이션 ── -->
 <div class="bottom-nav">
   <div class="nav-item active" onclick="switchTab('budget')"><span class="nav-icon">💰</span><span class="nav-label">비용관리</span></div>
-  <div class="nav-item" onclick="switchTab('items')"><span class="nav-icon">📦</span><span class="nav-label">가전·가구</span></div>
+  <div class="nav-item" onclick="switchTab('items')"><span class="nav-icon">📦</span><span class="nav-label">가전·가구·시공</span></div>
   <div class="nav-item" onclick="switchTab('schedule')"><span class="nav-icon">📅</span><span class="nav-label">스케줄</span></div>
-  <div class="nav-item" onclick="switchTab('research')"><span class="nav-icon">🔍</span><span class="nav-label">리서치</span></div>
+  <div class="nav-item" onclick="switchTab('research')"><span class="nav-icon">🔍</span><span class="nav-label">메모</span></div>
 </div>
 
 <!-- ══ TAB 1: 입주비용관리 ══ -->
@@ -662,9 +663,20 @@ tr:active td{background:rgba(255,255,255,.02);}
       <div class="lc-s-item"><div class="lc-s-label">보유현금</div><div class="lc-s-value" id="lc-surplus">—</div></div>
       <div class="lc-s-item"><div class="lc-s-label">최소 대출</div><div class="lc-s-value" id="lc-minloan">—</div></div>
     </div>
-    <div class="surplus-box positive" id="surplus-box">
-      <div><div class="sb-label" id="surplus-label">💰 대출 후 보유현금</div><div class="sb-desc">가전·가구·시공·예비비 활용</div></div>
+    <div class="surplus-box positive" id="surplus-box" onclick="editSurplusInline()" style="cursor:pointer;">
+      <div>
+        <div class="sb-label" id="surplus-label">💰 여유현금</div>
+        <div class="sb-desc" id="surplus-desc">가전·가구·시공·예비비 활용 · 탭하여 수정</div>
+      </div>
       <div><div class="sb-value" id="surplus-value">—</div></div>
+    </div>
+    <div id="surplus-edit-box" style="display:none;margin-bottom:16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">💡 원하는 보유현금을 입력하면 필요한 대출 금액이 자동 역산됩니다 (최대 6억).</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input type="text" id="surplus-edit-input" class="wizard-input" inputmode="numeric" placeholder="예: 5,000 (만원)" style="font-size:14px;flex:1;margin:0;" oninput="wzFormatPrice(this)">
+        <button onclick="event.stopPropagation();applySurplusEdit()" style="background:var(--accent);color:#000;border:none;border-radius:6px;padding:10px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">적용</button>
+        <button onclick="event.stopPropagation();closeSurplusEdit()" style="background:var(--surface3);color:var(--text2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:12px;cursor:pointer;font-family:inherit;">취소</button>
+      </div>
     </div>
     <hr class="divider">
     <div class="section-sub-title">📊 월 상환액 & DSR</div>
@@ -1109,6 +1121,12 @@ async function saveToFirestore(){
       repaySettings, purchaseItems, scheduleItems, researchItems
     };
     await db.collection('users').doc(currentUser.uid).set(data);
+    // 자동저장 인디케이터 표시
+    const indicator = document.getElementById('auto-save-indicator');
+    if(indicator){
+      indicator.style.opacity='1';
+      setTimeout(()=>{ indicator.style.opacity='0'; }, 2000);
+    }
   } catch(e){ console.warn('저장 실패', e); }
 }
 async function loadFromFirestore(){
@@ -1244,8 +1262,15 @@ function updateBudget(){
   document.getElementById('lc-minloan').textContent=fmt(getRequired());
   const box=document.getElementById('surplus-box');
   box.className='surplus-box '+(surplus>=0?'positive':'negative');
-  document.getElementById('surplus-value').textContent=fmt(surplus);
-  document.getElementById('surplus-label').textContent=surplus>=0?'💰 대출 후 보유현금':'⚠️ 대출 부족 — 추가 현금 필요';
+  if(surplus>=0){
+    document.getElementById('surplus-value').textContent=fmt(surplus);
+    document.getElementById('surplus-label').textContent='💰 여유현금';
+    document.getElementById('surplus-desc').textContent='가전·가구·시공·예비비 활용 · 탭하여 수정';
+  } else {
+    document.getElementById('surplus-value').textContent=fmt(Math.abs(surplus));
+    document.getElementById('surplus-label').textContent='⚠️ 필요한 현금';
+    document.getElementById('surplus-desc').textContent='대출 외 추가로 준비해야 할 현금 · 탭하여 수정';
+  }
   document.getElementById('paid-total-disp').textContent=fmt(paid);
   const needTotal = getLoanItemsTotal()+getCashTotal();
   document.getElementById('need-items-total').textContent=fmt(needTotal);
@@ -1372,8 +1397,8 @@ function renderWaterfall(){
   cashItems.forEach((it,i)=>{html+=`<div class="wf-row" style="background:rgba(240,160,48,.03)"><div class="wf-label" style="color:var(--due)">${nums[loanItems.length+i]} ${it.name}</div><div class="wf-bar-wrap"><div class="wf-bar" style="width:${pct(it.amount)}%;background:var(--due)"></div></div><div class="wf-amount" style="color:var(--due)">− ${fmt(it.amount)}</div></div>`;});
   html+='<div class="wf-arrow">↓</div>';
   html+=surplus>=0
-    ?`<div class="wf-row total-row"><div class="wf-label" style="color:var(--accent);font-weight:700">💰 보유현금</div><div class="wf-bar-wrap"><div class="wf-bar" style="width:${pct(surplus)}%;background:var(--accent)"></div></div><div class="wf-amount" style="color:var(--accent)">+ ${fmt(surplus)}</div></div>`
-    :`<div class="wf-row negative-row"><div class="wf-label" style="color:var(--danger);font-weight:700">⚠️ 대출 부족</div><div class="wf-bar-wrap"></div><div class="wf-amount" style="color:var(--danger)">− ${fmt(Math.abs(surplus))}</div></div>`;
+    ?`<div class="wf-row total-row"><div class="wf-label" style="color:var(--accent);font-weight:700">💰 여유현금</div><div class="wf-bar-wrap"><div class="wf-bar" style="width:${pct(surplus)}%;background:var(--accent)"></div></div><div class="wf-amount" style="color:var(--accent)">+ ${fmt(surplus)}</div></div>`
+    :`<div class="wf-row negative-row"><div class="wf-label" style="color:var(--danger);font-weight:700">⚠️ 필요현금</div><div class="wf-bar-wrap"><div class="wf-bar" style="width:${pct(Math.abs(surplus))}%;background:var(--danger)"></div></div><div class="wf-amount" style="color:var(--danger)">${fmt(Math.abs(surplus))}</div></div>`;
   document.getElementById('waterfall-content').innerHTML=html;
 }
 
@@ -1425,12 +1450,13 @@ function setMaxLoan(){loanAmount=60000;document.getElementById('loan-slider').va
 
 function editSurplusInline(){
   const box = document.getElementById('surplus-edit-box');
-  if(box.style.display==='none'){
+  if(!box) return;
+  if(box.style.display==='none' || box.style.display===''){
     box.style.display='block';
     const surplus = getSurplus();
     const inp = document.getElementById('surplus-edit-input');
     inp.value = surplus > 0 ? Math.round(surplus).toLocaleString('ko-KR') : '';
-    inp.focus();
+    setTimeout(()=>inp.focus(), 100);
   } else {
     box.style.display='none';
   }
