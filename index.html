@@ -406,7 +406,6 @@ tr:active td{background:rgba(255,255,255,.02);}
 <div class="wizard-overlay" id="wizard">
   <div class="wizard-header">
     <span class="wizard-step-label" id="wz-step-label">1 / 4</span>
-    <button class="wizard-skip" onclick="skipWizard()">건너뛰기</button>
   </div>
   <div class="wizard-progress"><div class="wizard-progress-fill" id="wz-progress" style="width:25%"></div></div>
 
@@ -949,10 +948,10 @@ tr:active td{background:rgba(255,255,255,.02);}
 </div>
 
 <!-- 이미지 확대 뷰어 (원본 크기, 하나로 이어서 스크롤) -->
-<div id="img-zoom-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:550;touch-action:pinch-zoom;cursor:zoom-out;" onclick="closeImgZoom()">
-  <div style="position:absolute;top:12px;right:16px;color:#fff;font-size:24px;cursor:pointer;z-index:551;" onclick="event.stopPropagation();closeImgZoom()">✕</div>
+<div id="img-zoom-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:550;touch-action:pinch-zoom;cursor:zoom-out;">
+  <div style="position:absolute;top:12px;right:16px;color:#fff;font-size:24px;cursor:pointer;z-index:551;" onclick="closeImgZoom()">✕</div>
   <div style="position:absolute;bottom:16px;left:0;right:0;text-align:center;color:#888;font-size:11px;pointer-events:none;">핀치로 확대/축소 · 스크롤로 이동 · 탭하여 닫기</div>
-  <div id="img-zoom-container" style="width:100%;height:100%;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;justify-content:center;" onclick="event.stopPropagation()">
+  <div id="img-zoom-container" style="width:100%;height:100%;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;justify-content:center;">
   </div>
 </div>
 
@@ -2330,42 +2329,37 @@ function openImgZoom(){
   const container = document.getElementById('img-zoom-container');
   const imgs = window._pgImgs || [];
   if(!imgs.length) return;
-  // 모든 이미지를 세로로 이어서 원본 크기로 표시
   const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-  const imgStyle = isMobile 
-    ? 'width:100vw;display:block;' 
-    : 'width:auto;max-width:95vw;display:block;';
-  container.innerHTML = '<div style="display:inline-block;">' +
-    imgs.map(src => '<img src="'+src+'" style="'+imgStyle+'" loading="lazy">').join('') +
-    '</div>';
+  const imgW = isMobile ? 'width:100vw;' : 'width:auto;max-width:95vw;';
+  container.innerHTML = imgs.map(src =>
+    '<img src="'+src+'" style="'+imgW+'display:block;pointer-events:none;" loading="lazy">'
+  ).join('');
   overlay.style.display = 'block';
   container.scrollTop = 0;
   document.body.style.overflow = 'hidden';
-  
-  // PC 드래그 스크롤 + 클릭 닫기 분리
-  let isDrag=false, sy=0, sx=0, scrollS=0, dDist=0;
-  container.style.cursor='grab';
+  // PC: 드래그=스크롤, 짧은클릭=닫기
+  let dragging=false, sy=0, sScroll=0, dist=0;
   container.onmousedown=function(e){
-    isDrag=true; sy=e.clientY; sx=e.clientX; scrollS=container.scrollTop; dDist=0;
-    container.style.cursor='grabbing';
-    e.preventDefault();
+    dragging=true; sy=e.clientY; sScroll=container.scrollTop; dist=0;
+    container.style.cursor='grabbing'; e.preventDefault();
   };
-  container.onmousemove=function(e){
-    if(!isDrag) return;
-    dDist = Math.abs(e.clientY-sy)+Math.abs(e.clientX-sx);
-    container.scrollTop = scrollS-(e.clientY-sy);
+  document.onmousemove=function(e){
+    if(!dragging) return;
+    dist+=Math.abs(e.clientY-sy);
+    container.scrollTop=sScroll-(e.clientY-sy);
+    sy=e.clientY; sScroll=container.scrollTop;
   };
-  container.onmouseup=function(e){
-    if(isDrag){
-      isDrag=false; container.style.cursor='grab';
-      if(dDist < 8) closeImgZoom(); // 드래그 아니면 클릭 → 닫기
-    }
+  document.onmouseup=function(e){
+    if(!dragging) return;
+    dragging=false; container.style.cursor='';
+    if(dist<8) closeImgZoom();
+    dist=0;
   };
-  // 모바일 터치 스크롤은 기본 동작 + 탭 닫기
+  // 모바일: 스와이프=스크롤(기본), 짧은탭=닫기
   let tsy=0, tdist=0;
-  container.ontouchstart=function(e){ tsy=e.touches[0].clientY; tdist=0; };
-  container.ontouchmove=function(e){ tdist=Math.abs(e.touches[0].clientY-tsy); };
-  container.ontouchend=function(e){ if(tdist < 8) closeImgZoom(); };
+  overlay.ontouchstart=function(e){ tsy=e.touches[0].clientY; tdist=0; };
+  overlay.ontouchmove=function(e){ tdist+=Math.abs(e.touches[0].clientY-tsy); tsy=e.touches[0].clientY; };
+  overlay.ontouchend=function(e){ if(tdist<15) closeImgZoom(); };
 }
 function closeImgZoom(){
   document.getElementById('img-zoom-overlay').style.display = 'none';
@@ -2425,27 +2419,17 @@ function showWzStep(step, caller){
   document.querySelectorAll('.wizard-body').forEach(b=>b.scrollTop=0);
 }
 
-let wzNavLock = false;
-// wzNavLock 안전장치: 3초 이상 lock 상태면 강제 해제
-setInterval(()=>{
-  if(wzNavLock){ wzNavLock=false; }
-}, 3000);
+let wzNavLock = false; // 모달 닫기용으로만 유지
 
 
 function wizardNext(){
-  debugLog('wizardNext() 호출 wzStep='+wzStep+' wzNavLock='+wzNavLock);
-  if(wzNavLock){
-    debugLog('wizardNext: wzNavLock=true, 무시됨');
-    return;
-  }
-  wzNavLock = true; setTimeout(()=>{ wzNavLock=false; debugLog('wzNavLock 해제'); }, 400);
-  // 스텝1 유효성 검사: 타입 + 분양가 필수
+  debugLog('wizardNext 호출: step='+wzStep);
+  // 스텝1 유효성 검사
   if(wzStep===1){
     const typeOk = document.getElementById('wz-type').value !== '';
     const priceOk = wzParseWon(document.getElementById('wz-price')) > 0;
     if(!typeOk || !priceOk){
       document.getElementById('wz1-validation-msg').style.display='block';
-      wzNavLock=false;
       return;
     }
     document.getElementById('wz1-validation-msg').style.display='none';
@@ -2453,14 +2437,9 @@ function wizardNext(){
   if(wzStep < WZ_TOTAL){
     showWzStep(wzStep + 1,'wizardNext');
   } else {
-    debugLog('wizardNext: 마지막 단계 → applyWizardData 호출');
-    try {
-      applyWizardData();
-    } catch(e){
-      debugLog('⚠️ applyWizardData 에러: '+e.message);
-      wzNavLock = false;
-      showToast('⚠️ 오류 발생: '+e.message);
-    }
+    debugLog('위자드 완료 → applyWizardData');
+    try { applyWizardData(); }
+    catch(e){ debugLog('applyWizardData 에러: '+e.message); showToast('오류: '+e.message); }
   }
 }
 
@@ -2470,8 +2449,6 @@ function wzValidateStep1(){
   if(typeOk && priceOk) document.getElementById('wz1-validation-msg').style.display='none';
 }
 function wizardBack(){
-  if(wzNavLock) return;
-  wzNavLock = true; setTimeout(()=>wzNavLock=false, 500);
   if(wzStep > 1) showWzStep(wzStep - 1,'wizardBack');
 }
 function skipWizard(){
