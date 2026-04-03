@@ -936,24 +936,14 @@ tr:active td{background:rgba(255,255,255,.02);}
 </div> <!-- /app-main -->
 
 <!-- ── 가격표 이미지 모달 (app-main 밖) ── -->
-<div class="modal-overlay" id="price-guide-modal" style="z-index:450;">
-  <div class="modal" style="max-width:700px;max-height:92vh;">
-    <div class="modal-handle"></div>
-    <div class="modal-title" id="price-guide-title">가격표</div>
-    <div style="font-size:10px;color:var(--text3);margin-bottom:8px;">💡 이미지를 탭하면 확대됩니다 · 위아래로 스크롤하여 이동</div>
-    <div id="price-guide-content" style="overflow-y:auto;max-height:68vh;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;"></div>
-    <div style="display:flex;justify-content:center;gap:4px;margin-top:8px;" id="price-guide-dots"></div>
-    <div class="modal-footer" style="margin-top:8px;"><button class="btn-cancel" onclick="closePriceGuide()">닫기</button></div>
+<!-- 가격표 풀스크린 뷰어 (위자드 위에 표시) -->
+<div id="price-guide-viewer" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:500;flex-direction:column;">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);flex-shrink:0;">
+    <span id="price-guide-title" style="font-size:14px;font-weight:700;color:var(--text);">가격표</span>
+    <button onclick="closePriceGuide()" style="background:none;border:1px solid var(--border);color:var(--text2);border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:inherit;">닫기</button>
   </div>
-</div>
-
-<!-- 이미지 확대 뷰어 -->
-<div id="img-zoom-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:500;touch-action:pinch-zoom;cursor:zoom-out;" onclick="closeImgZoom()">
-  <div style="position:absolute;top:12px;right:16px;color:#fff;font-size:24px;cursor:pointer;z-index:501;" onclick="closeImgZoom()">✕</div>
-  <div style="position:absolute;bottom:16px;left:0;right:0;text-align:center;color:#888;font-size:11px;">핀치로 확대/축소 · 탭하여 닫기</div>
-  <div id="img-zoom-container" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;overflow:auto;-webkit-overflow-scrolling:touch;">
-    <img id="img-zoom-img" style="max-width:200%;max-height:none;width:auto;transform-origin:center center;" src="">
-  </div>
+  <div style="font-size:10px;color:var(--text3);padding:6px 16px;flex-shrink:0;">핀치로 확대/축소 · 위아래로 스크롤</div>
+  <div id="price-guide-content" style="flex:1;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y pinch-zoom;overscroll-behavior:contain;"></div>
 </div>
 
 
@@ -1133,7 +1123,7 @@ function handleLoginSuccess(user){
     // 실패해도 위자드를 보여줌 (신규 사용자 취급)
     document.getElementById('app-main').style.display='none';
     document.getElementById('wizard').classList.add('open');
-    showWzStep(1);
+    showWzStep(1,'handleLogin-timeout');
   });
 }
 
@@ -1201,10 +1191,21 @@ async function saveToFirestore(){
 }
 async function loadFromFirestore(){
   if(!currentUser) return;
+  const wizardEl = document.getElementById('wizard');
+  // 위자드가 이미 열려있고 사용자가 진행 중이면 건드리지 않음
+  if(wizardEl.classList.contains('open') && wzStep > 1){
+    debugLog('loadFromFirestore 스킵: 위자드 진행 중 step='+wzStep);
+    return;
+  }
   debugLog('loadFromFirestore: uid=' + currentUser.uid);
   try {
     const doc = await db.collection('users').doc(currentUser.uid).get();
     debugLog('Firestore 문서 존재: ' + doc.exists);
+    // 비동기 완료 후 다시 체크
+    if(wizardEl.classList.contains('open') && wzStep > 1){
+      debugLog('loadFromFirestore 결과 무시: 위자드 진행 중 step='+wzStep);
+      return;
+    }
     if(doc.exists){
       const data = doc.data();
       const hasRealData = data.wizardDone === true ||
@@ -1220,21 +1221,25 @@ async function loadFromFirestore(){
         debugLog('→ 대시보드 표시');
       } else {
         document.getElementById('app-main').style.display = 'none';
-        document.getElementById('wizard').classList.add('open');
-        showWzStep(1);
+        wizardEl.classList.add('open');
+        showWzStep(1,'loadFS-empty');
         debugLog('→ 위자드 표시 (데이터 비어있음)');
       }
     } else {
       document.getElementById('app-main').style.display = 'none';
-      document.getElementById('wizard').classList.add('open');
-      showWzStep(1);
+      wizardEl.classList.add('open');
+      showWzStep(1,'loadFS-new');
       debugLog('→ 위자드 표시 (신규 사용자)');
     }
   } catch(e){
     debugLog('Firestore 에러: ' + e.message);
+    if(wizardEl.classList.contains('open') && wzStep > 1){
+      debugLog('Firestore 에러이나 위자드 진행 중 - 유지');
+      return;
+    }
     document.getElementById('app-main').style.display = 'none';
-    document.getElementById('wizard').classList.add('open');
-    showWzStep(1);
+    wizardEl.classList.add('open');
+    showWzStep(1,'loadFS-error');
   }
 }
 
@@ -2015,7 +2020,7 @@ function applyLoadedData(data){
 }
 
 // ══ 모달 바깥 클릭 닫기 ══
-['item-modal','sch-modal','export-modal','research-modal','reset-modal','price-guide-modal'].forEach(id=>{
+['item-modal','sch-modal','export-modal','research-modal','reset-modal'].forEach(id=>{
   const overlay=document.getElementById(id);
   if(!overlay) return;
   let mdown=false;
@@ -2220,10 +2225,9 @@ function updateWzCalc2(){
 
 // 가격표 모달
 function openPriceGuide(type){
-  const modal = document.getElementById('price-guide-modal');
+  const viewer = document.getElementById('price-guide-viewer');
   const title = document.getElementById('price-guide-title');
   const content = document.getElementById('price-guide-content');
-  const dots = document.getElementById('price-guide-dots');
   let imgs = [];
   if(type==='option'){
     title.textContent = '유상옵션 가격표';
@@ -2232,98 +2236,20 @@ function openPriceGuide(type){
     title.textContent = '시스템 에어컨 가격표';
     imgs = ['images/aircon1.jpg','images/aircon2.jpg'];
   }
-  content.innerHTML = imgs.map((src,i)=>
-    '<img src="'+src+'" data-zoomsrc="'+src+'" style="width:100%;margin-bottom:8px;border-radius:6px;cursor:zoom-in;display:block;">'
+  // 모든 이미지를 하나로 이어서 표시 (핀치줌으로 확대 가능)
+  content.innerHTML = imgs.map(src =>
+    '<img src="'+src+'" style="width:100%;display:block;" loading="lazy">'
   ).join('');
-  // 페이지 인디케이터 (현재 몇 번째 이미지인지)
-  dots.innerHTML = imgs.map((_,i)=>'<div style="width:6px;height:6px;border-radius:50%;background:var(--border2);"></div>').join('');
-  modal.classList.add('open');
-  // PC 마우스 드래그 스크롤 + 클릭 확대 분리
-  let isDragging=false, startY=0, startX=0, scrollStart=0, dragDist=0;
-  content.style.cursor='grab';
-  content.onmousedown=function(e){
-    isDragging=true; startY=e.clientY; startX=e.clientX; scrollStart=content.scrollTop; dragDist=0;
-    content.style.cursor='grabbing'; content.style.userSelect='none';
-    e.preventDefault();
-  };
-  content.onmousemove=function(e){
-    if(!isDragging) return;
-    dragDist = Math.abs(e.clientY - startY) + Math.abs(e.clientX - startX);
-    content.scrollTop = scrollStart - (e.clientY - startY);
-  };
-  content.onmouseup=function(e){
-    if(isDragging){
-      isDragging=false; content.style.cursor='grab'; content.style.userSelect='';
-      // 드래그 거리가 짧으면 클릭으로 간주 → 확대
-      if(dragDist < 8){
-        const img = document.elementFromPoint(e.clientX, e.clientY);
-        if(img && img.tagName==='IMG' && img.dataset.zoomsrc) openImgZoom(img.dataset.zoomsrc);
-      }
-    }
-  };
-  // 모바일 터치에서도 탭 vs 스와이프 분리
-  let touchStartY=0, touchDist=0;
-  content.ontouchstart=function(e){ touchStartY=e.touches[0].clientY; touchDist=0; };
-  content.ontouchmove=function(e){ touchDist=Math.abs(e.touches[0].clientY-touchStartY); };
-  content.ontouchend=function(e){
-    if(touchDist < 8){
-      const t=e.changedTouches[0];
-      const img=document.elementFromPoint(t.clientX,t.clientY);
-      if(img && img.tagName==='IMG' && img.dataset.zoomsrc) openImgZoom(img.dataset.zoomsrc);
-    }
-  };
-  // 스크롤 위치에 따라 인디케이터 업데이트
-  content.onscroll = function(){
-    const imgEls = content.querySelectorAll('img');
-    const dotEls = dots.querySelectorAll('div');
-    let activeIdx = 0;
-    imgEls.forEach((img,i)=>{
-      if(img.offsetTop <= content.scrollTop + content.clientHeight/2) activeIdx = i;
-    });
-    dotEls.forEach((d,i)=>{
-      d.style.background = i===activeIdx ? 'var(--accent)' : 'var(--border2)';
-    });
-  };
+  viewer.style.display = 'flex';
+  content.scrollTop = 0;
 }
 function closePriceGuide(){ 
-  const modal = document.getElementById('price-guide-modal');
-  // touch passthrough 방지: 먼저 터치 차단 후 지연 숨김
-  modal.style.pointerEvents = 'none';
-  wzNavLock = true;
-  setTimeout(()=>{
-    modal.classList.remove('open');
-    modal.style.pointerEvents = '';
-    setTimeout(()=>{ wzNavLock = false; }, 400);
-  }, 350);
+  document.getElementById('price-guide-viewer').style.display = 'none';
 }
 
 // 이미지 확대 뷰어
-function openImgZoom(src){
-  const overlay = document.getElementById('img-zoom-overlay');
-  const img = document.getElementById('img-zoom-img');
-  img.src = src;
-  // PC: 원본 크기로 표시, 모바일: 화면 너비 기준
-  if(/iPhone|iPad|Android/i.test(navigator.userAgent)){
-    img.style.width = '100vw';
-    img.style.maxWidth = '100vw';
-  } else {
-    img.style.width = 'auto';
-    img.style.maxWidth = '95vw';
-  }
-  overlay.style.display = 'block';
-  document.body.style.overflow = 'hidden';
-}
-function closeImgZoom(){
-  const overlay = document.getElementById('img-zoom-overlay');
-  overlay.style.pointerEvents = 'none';
-  wzNavLock = true;
-  setTimeout(()=>{
-    overlay.style.display = 'none';
-    overlay.style.pointerEvents = '';
-    document.body.style.overflow = '';
-    setTimeout(()=>{ wzNavLock = false; }, 400);
-  }, 350);
-}
+function openImgZoom(src){ /* 미사용 - 풀스크린 뷰어로 대체 */ }
+function closeImgZoom(){ /* 미사용 */ }
 
 // 취득세 계산 (취득가액 기준, 6억 이하 1%, 6~9억 구간별, 9억 초과 3%)
 function calcAcquisitionTax(totalWon){
@@ -2362,7 +2288,14 @@ function wzAutoNext(mainStep, currentSub){
   // 자동 이동 비활성화 (사용자 혼란 방지)
 }
 
-function showWzStep(step){
+function showWzStep(step, caller){
+  const src = caller || '';
+  debugLog('showWzStep('+step+') 호출됨 from: '+src+' 현재: '+wzStep);
+  // 이미 같은 단계면 무시
+  if(wzStep === step && document.getElementById('wz-step-'+step).style.display === 'block'){
+    debugLog('showWzStep 무시: 이미 같은 단계');
+    return;
+  }
   wzStep = step;
   for(let i=1;i<=WZ_TOTAL;i++){
     document.getElementById('wz-step-'+i).style.display = i===step ? 'block' : 'none';
@@ -2426,7 +2359,7 @@ function wizardNext(){
     document.getElementById('wz1-validation-msg').style.display='none';
   }
   if(wzStep < WZ_TOTAL){
-    showWzStep(wzStep + 1);
+    showWzStep(wzStep + 1,'wizardNext');
   } else {
     applyWizardData();
   }
@@ -2440,7 +2373,7 @@ function wzValidateStep1(){
 function wizardBack(){
   if(wzNavLock) return;
   wzNavLock = true; setTimeout(()=>wzNavLock=false, 500);
-  if(wzStep > 1) showWzStep(wzStep - 1);
+  if(wzStep > 1) showWzStep(wzStep - 1,'wizardBack');
 }
 function skipWizard(){
   document.getElementById('wizard').classList.remove('open');
@@ -2479,7 +2412,7 @@ function executeReset(){
   // 3. 대시보드 숨기고 위자드 표시
   document.getElementById('app-main').style.display='none';
   document.getElementById('wizard').classList.add('open');
-  showWzStep(1);
+  showWzStep(1,'executeReset');
   debugLog('위자드 1단계 표시');
   
   // 4. 위자드 입력 필드 초기화
