@@ -1307,7 +1307,23 @@ function initDdays(){
 function ddayChipClick(type){
   // 대시보드가 보이는 상태에서만 동작
   if(document.getElementById('app-main').style.display === 'none') return;
-  switchTab('schedule');
+  const label = type==='inspection' ? '사전점검' : '잔금 납부';
+  // 해당 일정이 이미 있는지 확인
+  const existing = scheduleItems.find(s => s.name === label);
+  if(existing && existing.date){
+    // 이미 입력된 경우 - 스케줄 탭으로 이동
+    switchTab('schedule');
+  } else {
+    // 미입력 - 안내 후 스케줄 탭으로 이동하고 추가 모달 오픈
+    switchTab('schedule');
+    setTimeout(()=>{
+      showToast('📅 '+label+' 일정을 추가해 주세요');
+      // 새 일정 모달을 열고 이름을 미리 채움
+      openSchModal(null);
+      document.getElementById('sm-name').value = label;
+      document.getElementById('sm-priority').value = 'important';
+    }, 300);
+  }
 }
 
 // ══ 탭 전환 ══
@@ -1994,19 +2010,22 @@ function applyLoadedData(data){
   overlay.addEventListener('mouseup',function(e){
     if(mdown&&e.target===this){
       e.stopPropagation(); e.preventDefault();
-      this.classList.remove('open');
+      if(id==='price-guide-modal'){ closePriceGuide(); }
+      else { this.classList.remove('open'); }
       if(typeof wzNavLock!=='undefined'){wzNavLock=true;setTimeout(()=>wzNavLock=false,800);}
     }
     mdown=false;
   });
-  overlay.addEventListener('touchstart',function(e){mdown=(e.target===this);},{passive:true});
+  overlay.addEventListener('touchstart',function(e){mdown=(e.target===this);},{passive:false});
   overlay.addEventListener('touchend',function(e){
     if(mdown&&e.target===this){
-      this.classList.remove('open');
+      e.stopPropagation(); e.preventDefault();
+      if(id==='price-guide-modal'){ closePriceGuide(); }
+      else { this.classList.remove('open'); }
       if(typeof wzNavLock!=='undefined'){wzNavLock=true;setTimeout(()=>wzNavLock=false,800);}
     }
     mdown=false;
-  },{passive:true});
+  },{passive:false});
 });
 
 // ══ 초기화 ══
@@ -2254,8 +2273,15 @@ function openPriceGuide(type){
   };
 }
 function closePriceGuide(){ 
-  document.getElementById('price-guide-modal').classList.remove('open');
-  wzNavLock = true; setTimeout(()=>wzNavLock=false, 800);
+  const modal = document.getElementById('price-guide-modal');
+  // touch passthrough 방지: 먼저 터치 차단 후 지연 숨김
+  modal.style.pointerEvents = 'none';
+  wzNavLock = true;
+  setTimeout(()=>{
+    modal.classList.remove('open');
+    modal.style.pointerEvents = '';
+    setTimeout(()=>{ wzNavLock = false; }, 400);
+  }, 350);
 }
 
 // 이미지 확대 뷰어
@@ -2275,9 +2301,15 @@ function openImgZoom(src){
   document.body.style.overflow = 'hidden';
 }
 function closeImgZoom(){
-  document.getElementById('img-zoom-overlay').style.display = 'none';
-  document.body.style.overflow = '';
-  wzNavLock = true; setTimeout(()=>wzNavLock=false, 800);
+  const overlay = document.getElementById('img-zoom-overlay');
+  overlay.style.pointerEvents = 'none';
+  wzNavLock = true;
+  setTimeout(()=>{
+    overlay.style.display = 'none';
+    overlay.style.pointerEvents = '';
+    document.body.style.overflow = '';
+    setTimeout(()=>{ wzNavLock = false; }, 400);
+  }, 350);
 }
 
 // 취득세 계산 (취득가액 기준, 6억 이하 1%, 6~9억 구간별, 9억 초과 3%)
