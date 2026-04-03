@@ -2335,12 +2335,37 @@ function openImgZoom(){
   const imgStyle = isMobile 
     ? 'width:100vw;display:block;' 
     : 'width:auto;max-width:95vw;display:block;';
-  container.innerHTML = '<div onclick="event.stopPropagation()" style="display:inline-block;">' +
+  container.innerHTML = '<div style="display:inline-block;">' +
     imgs.map(src => '<img src="'+src+'" style="'+imgStyle+'" loading="lazy">').join('') +
     '</div>';
   overlay.style.display = 'block';
   container.scrollTop = 0;
   document.body.style.overflow = 'hidden';
+  
+  // PC 드래그 스크롤 + 클릭 닫기 분리
+  let isDrag=false, sy=0, sx=0, scrollS=0, dDist=0;
+  container.style.cursor='grab';
+  container.onmousedown=function(e){
+    isDrag=true; sy=e.clientY; sx=e.clientX; scrollS=container.scrollTop; dDist=0;
+    container.style.cursor='grabbing';
+    e.preventDefault();
+  };
+  container.onmousemove=function(e){
+    if(!isDrag) return;
+    dDist = Math.abs(e.clientY-sy)+Math.abs(e.clientX-sx);
+    container.scrollTop = scrollS-(e.clientY-sy);
+  };
+  container.onmouseup=function(e){
+    if(isDrag){
+      isDrag=false; container.style.cursor='grab';
+      if(dDist < 8) closeImgZoom(); // 드래그 아니면 클릭 → 닫기
+    }
+  };
+  // 모바일 터치 스크롤은 기본 동작 + 탭 닫기
+  let tsy=0, tdist=0;
+  container.ontouchstart=function(e){ tsy=e.touches[0].clientY; tdist=0; };
+  container.ontouchmove=function(e){ tdist=Math.abs(e.touches[0].clientY-tsy); };
+  container.ontouchend=function(e){ if(tdist < 8) closeImgZoom(); };
 }
 function closeImgZoom(){
   document.getElementById('img-zoom-overlay').style.display = 'none';
@@ -2401,11 +2426,19 @@ function showWzStep(step, caller){
 }
 
 let wzNavLock = false;
+// wzNavLock 안전장치: 3초 이상 lock 상태면 강제 해제
+setInterval(()=>{
+  if(wzNavLock){ wzNavLock=false; }
+}, 3000);
 
 
 function wizardNext(){
-  if(wzNavLock) return;
-  wzNavLock = true; setTimeout(()=>wzNavLock=false, 400);
+  debugLog('wizardNext() 호출 wzStep='+wzStep+' wzNavLock='+wzNavLock);
+  if(wzNavLock){
+    debugLog('wizardNext: wzNavLock=true, 무시됨');
+    return;
+  }
+  wzNavLock = true; setTimeout(()=>{ wzNavLock=false; debugLog('wzNavLock 해제'); }, 400);
   // 스텝1 유효성 검사: 타입 + 분양가 필수
   if(wzStep===1){
     const typeOk = document.getElementById('wz-type').value !== '';
@@ -2420,7 +2453,14 @@ function wizardNext(){
   if(wzStep < WZ_TOTAL){
     showWzStep(wzStep + 1,'wizardNext');
   } else {
-    applyWizardData();
+    debugLog('wizardNext: 마지막 단계 → applyWizardData 호출');
+    try {
+      applyWizardData();
+    } catch(e){
+      debugLog('⚠️ applyWizardData 에러: '+e.message);
+      wzNavLock = false;
+      showToast('⚠️ 오류 발생: '+e.message);
+    }
   }
 }
 
