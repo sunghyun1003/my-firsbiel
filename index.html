@@ -214,6 +214,8 @@ tr:active td{background:rgba(255,255,255,.02);}
 .installment-tag{display:inline-block;background:rgba(240,160,48,.08);border:1px solid rgba(240,160,48,.18);color:var(--due);border-radius:10px;padding:2px 8px;font-size:9px;font-weight:700;}
 .btn-add-item{background:rgba(184,230,54,.06);border:1px dashed rgba(184,230,54,.3);color:var(--accent);border-radius:var(--radius);padding:16px;width:100%;text-align:center;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;}
 .btn-add-item:active{background:rgba(184,230,54,.14);}
+.fab-add{position:fixed;bottom:calc(var(--nav-h) + var(--safe-bottom) + 16px);right:16px;width:52px;height:52px;border-radius:50%;background:var(--accent);color:#000;border:none;font-size:24px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(184,230,54,.35);z-index:150;display:none;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s;line-height:1;}
+.fab-add:active{transform:scale(.9);box-shadow:0 2px 8px rgba(184,230,54,.2);}
 
 /* ── 스케줄 ── */
 .schedule-timeline{position:relative;padding-left:24px;display:flex;flex-direction:column;gap:0;}
@@ -622,6 +624,9 @@ tr:active td{background:rgba(255,255,255,.02);}
   <div class="dday-chip primary" id="card-balance" onclick="ddayChipClick('balance')" style="cursor:pointer;"><span class="dc-label">잔금일</span><span class="dc-value" id="dday-main">—</span></div>
 </div>
 
+<!-- 가전·가구·시공 플로팅 추가 버튼 -->
+<button class="fab-add" id="fab-add-item" onclick="openItemModal()">+</button>
+
 <!-- ── 하단 네비게이션 ── -->
 <div class="bottom-nav">
   <div class="nav-item active" onclick="switchTab('budget')"><span class="nav-icon">💰</span><span class="nav-label">비용관리</span></div>
@@ -903,10 +908,10 @@ tr:active td{background:rgba(255,255,255,.02);}
 
     <!-- 후원 -->
     <div style="background:rgba(184,230,54,.03);border:1px solid rgba(184,230,54,.1);border-radius:10px;padding:14px;margin-bottom:12px;">
-      <div style="font-size:13px;font-weight:700;margin-bottom:6px;">💪 더 튼튼한 서버를 위해 힘을 보태주세요!</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:6px;">💪 유용하셨다면 더 튼튼한 서버를 위해 힘을 보태주세요!</div>
       <div style="font-size:11px;color:var(--text3);line-height:1.8;margin-bottom:10px;">
-        사이트가 유용하셨나요? 현재 무료 서버의 한계를 넘어, 안정적인 도메인과 고도화를 준비 중입니다.<br>
-        보내주신 마음은 오직 우리 단지 사이트 운영비로만 투명하게 사용됩니다 🛡️<br>
+        더 안정적인 도메인과 기능 고도화를 준비 중입니다.<br>
+        보내주신 후원금은 우리 단지 사이트 운영비로 값지게 사용됩니다 🛡️<br>
         <span style="color:var(--accent);">커피도 과해요! 껌값이면 충분합니다. 감사합니다 🙏</span>
       </div>
       <div style="display:flex;gap:8px;">
@@ -1384,15 +1389,24 @@ function switchTab(name){
   document.querySelectorAll('.bottom-nav .nav-item').forEach((el,i)=>{
     el.classList.toggle('active',i==={budget:0,items:1,schedule:2,research:3,more:4}[name]);
   });
+  if(name==='budget'){
+    // 비용관리 탭 진입 시 항상 납부일정 서브탭을 기본으로
+    document.getElementById('budget-tab-schedule').style.display='block';
+    document.getElementById('budget-tab-waterfall').style.display='none';
+    const budgetBtns=document.querySelectorAll('#tab-budget .sub-tabs .tab');
+    budgetBtns.forEach((b,i)=>{b.classList.toggle('active',i===0);});
+  }
   if(name==='items') renderItemsTab();
+  // 가전·가구·시공 탭에서만 플로팅 추가 버튼 표시
+  const fab=document.getElementById('fab-add-item');
+  if(fab) fab.style.display=name==='items'?'flex':'none';
   if(name==='research') renderResearch();
-  // more 탭은 .active 클래스로 제어됨
   if(name==='schedule'){
     calYear=new Date().getFullYear();calMonth=new Date().getMonth();
     renderSchedule();
     if(schView==='calendar'){renderCalendar();setTimeout(initCalSwipe,100);}
   }
-  window.scrollTo({top:0,behavior:'smooth'});
+  window.scrollTo({top:0});
 }
 function showBudgetTab(name,btn){
   document.getElementById('budget-tab-schedule').style.display=name==='schedule'?'block':'none';
@@ -2084,6 +2098,8 @@ function applyLoadedData(data){
   document.getElementById('inp-income').value=repaySettings.income;
   document.getElementById('inp-other').value=repaySettings.other;
   updateBudget();renderItemsTab();renderSchedule();renderResearch();initDdays();
+  // 대시보드 진입 시 비용관리 탭 상단으로 초기화
+  switchTab('budget');
 }
 
 // ══ 모달 바깥 클릭 닫기 ══
@@ -2737,6 +2753,8 @@ function applyWizardData(){
   renderSchedule();
   renderResearch();
   initDdays();
+  // 비용관리 탭 상단으로 초기화
+  switchTab('budget');
   saveToFirestore();
 }
 </script>
