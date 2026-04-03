@@ -498,18 +498,17 @@ tr:active td{background:rgba(255,255,255,.02);}
     <div id="wz-midloan-detail">
       <div class="wizard-field">
         <label class="wizard-label">② 대출 회차</label>
-        <select class="wizard-select" id="wz-mid-rounds" onchange="updateWzCalc2()" style="font-size:16px;padding:14px;">
+        <select class="wizard-select" id="wz-mid-rounds" onchange="wzCalcMidloanAuto();updateWzCalc2()" style="font-size:16px;padding:14px;">
           <option value="6">6회차 전액 대출</option><option value="5">5회차 (2~6차)</option>
           <option value="4">4회차 (3~6차)</option><option value="3">3회차 (4~6차)</option>
           <option value="2">2회차 (5~6차)</option><option value="1">1회차 (6차만)</option>
         </select>
         <div class="wizard-hint">대출 실행 회차에 따라 후불이자가 달라집니다</div>
       </div>
-      <div class="wizard-field">
-        <label class="wizard-label">③ 중도금 대출 잔액 (원)</label>
-        <input class="wizard-input" id="wz-midloan" type="text" inputmode="numeric" placeholder="예: 330,000,000" oninput="wzFormatPrice(this);updateWzCalc2()" style="font-size:16px;">
-        <div class="wizard-hint">현재 남아있는 중도금 대출 잔액</div>
-        <div class="wizard-later">전액 대출 시 분양가의 60%, 일부 상환했으면 남은 금액</div>
+      <div class="wizard-field" id="wz-midloan-auto-wrap">
+        <label class="wizard-label">③ 중도금 대출 금액</label>
+        <input class="wizard-input" id="wz-midloan" type="text" readonly style="font-size:16px;color:var(--accent);background:var(--surface3);">
+        <div class="wizard-hint">회차 × 분양가의 10%로 자동 계산됩니다</div>
       </div>
     </div>
 
@@ -1048,6 +1047,10 @@ function googleLogin(){
 function logoutUser(){
   loginHandled = false;
   authResolved = false;
+  // 전역 데이터 초기화 (다른 계정 로그인 시 데이터 오염 방지)
+  loanAmount=60000; userCash=0; paidItems=[]; loanItems=[]; cashItems=[]; futureItems=[];
+  repaySettings={rate:3.5,term:30,income:5000,other:0};
+  purchaseItems=[]; researchItems=[]; scheduleItems=[];
   auth.signOut().then(()=>{
     currentUser = null;
     document.getElementById('login-screen').style.display='flex';
@@ -1107,6 +1110,10 @@ function handleLoginSuccess(user){
   authResolved = true;
   currentUser = user;
   debugLog('→ 로그인 성공 처리: ' + (user.email||user.uid));
+  // 이전 계정 데이터 잔존 방지 — Firestore 로드로 덮어쓰기 전 초기화
+  loanAmount=60000; userCash=0; paidItems=[]; loanItems=[]; cashItems=[]; futureItems=[];
+  repaySettings={rate:3.5,term:30,income:5000,other:0};
+  purchaseItems=[]; researchItems=[]; scheduleItems=[];
   // 로그인 화면 숨기고 로딩 화면 표시 (까만 화면 방지)
   document.getElementById('login-screen').style.display='none';
   document.getElementById('loading-screen').style.display='flex';
@@ -2163,6 +2170,8 @@ function wzMidloanToggle(hasLoan){
   if(!hasLoan){
     document.getElementById('wz-midloan').value = '';
     document.getElementById('wz-mid-rounds').value = '6';
+  } else {
+    wzCalcMidloanAuto();
   }
   updateWzCalc2();
 }
@@ -2205,6 +2214,30 @@ function wzTypeSelect(){
     if(priceSection) priceSection.style.display = 'none';
   }
   updateWzCalc();
+  wzCalcMidloanAuto();
+}
+
+// 중도금 대출 금액 자동 계산: 회차 × 분양가 10%
+function wzCalcMidloanAuto(){
+  const priceWon = wzParseWon(document.getElementById('wz-price'));
+  // 자동 입력 모드일 때
+  if(priceWon === 0){
+    const autoVal = document.getElementById('wz-price-auto').value;
+    if(autoVal){
+      const parsed = parseInt(autoVal.replace(/[^0-9]/g,'')) || 0;
+      if(parsed > 0){
+        const rounds = parseInt(document.getElementById('wz-mid-rounds').value) || 0;
+        const midloan = parsed * 0.1 * rounds;
+        document.getElementById('wz-midloan').value = midloan > 0 ? midloan.toLocaleString('ko-KR') : '';
+        return;
+      }
+    }
+  }
+  if(priceWon > 0){
+    const rounds = parseInt(document.getElementById('wz-mid-rounds').value) || 0;
+    const midloan = priceWon * 0.1 * rounds;
+    document.getElementById('wz-midloan').value = midloan > 0 ? midloan.toLocaleString('ko-KR') : '';
+  }
 }
 
 function calcMidInterest(salePriceMW, balanceDate, rounds){
@@ -2599,6 +2632,10 @@ function applyWizardData(){
   // 보유현금 저장
   userCash = cashMW;
   repaySettings = {rate, term, income:incomeMW, other:0};
+
+  // 가전·가구·시공, 메모 초기화 (신규 사용자/초기화 후 이전 데이터 잔존 방지)
+  purchaseItems = [];
+  researchItems = [];
 
   // ═══ 납부 완료 항목 (paidItems) ═══
   paidItems = [];
