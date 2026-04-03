@@ -668,7 +668,7 @@ tr:active td{background:rgba(255,255,255,.02);}
     <div id="surplus-edit-box" style="display:none;margin-bottom:16px;background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:12px;">
       <div style="font-size:11px;color:var(--text2);margin-bottom:8px;">보유현금(만원)을 입력하면 필요한 대출 금액이 자동으로 계산됩니다.</div>
       <div style="display:flex;gap:8px;align-items:center;">
-        <input type="text" id="surplus-edit-input" class="wizard-input" inputmode="numeric" placeholder="예: 5000" style="font-size:14px;flex:1;margin:0;">
+        <input type="text" id="surplus-edit-input" class="wizard-input" inputmode="numeric" placeholder="예: 5,000" style="font-size:14px;flex:1;margin:0;" oninput="const r=this.value.replace(/[^0-9]/g,'');this.value=r?parseInt(r).toLocaleString('ko-KR'):''">
         <button onclick="applySurplusEdit()" style="background:var(--accent);color:#000;border:none;border-radius:6px;padding:10px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">적용</button>
         <button onclick="closeSurplusEdit()" style="background:var(--surface3);color:var(--text2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:12px;cursor:pointer;font-family:inherit;">취소</button>
       </div>
@@ -904,10 +904,10 @@ tr:active td{background:rgba(255,255,255,.02);}
 
     <!-- 후원 -->
     <div style="background:rgba(184,230,54,.03);border:1px solid rgba(184,230,54,.1);border-radius:10px;padding:14px;margin-bottom:12px;">
-      <div style="font-size:13px;font-weight:700;margin-bottom:4px;">☕ 커피 한 잔 사주기</div>
+      <div style="font-size:13px;font-weight:700;margin-bottom:4px;">☕ 서버 유지에 힘을 보태주세요</div>
       <div style="font-size:11px;color:var(--text3);line-height:1.6;margin-bottom:10px;">
-        유용하게 사용하셨다면 커피 한 잔으로 응원해 주세요.<br>
-        서버 유지비 등에 사용됩니다.
+        이 앱은 개발자가 아닌 입주민 동료가 오랜 시간 심혈을 기울여 만든 무료 도구입니다.<br>
+        100원이든 1,000원이든 작은 후원이 서버 유지비가 되어 앱을 계속 운영할 수 있게 해줍니다. 🙏
       </div>
       <div style="display:flex;gap:8px;">
         <button onclick="copyAccount()" style="flex:1;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;font-family:inherit;color:var(--text);">
@@ -927,7 +927,7 @@ tr:active td{background:rgba(255,255,255,.02);}
     </div>
 
     <div style="font-size:9px;color:var(--text3);text-align:center;line-height:1.6;padding:8px 0;">
-      제작: 성현 · 문의: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="82f1f7ece5eafbf7ecb3b2b2b1c2e5efe3ebeeace1edef">[email&#160;protected]</a><br>
+      제작: 성현 · <a href="mailto:sunghyun1003@gmail.com" style="color:var(--text3);text-decoration:underline;">문의: sunghyun1003@gmail.com</a><br>
       데이터는 본인 구글 계정에만 저장됩니다
     </div>
   </div>
@@ -1546,13 +1546,19 @@ function renderFuture(){
   document.getElementById('future-items-total').textContent=tc>0?tc+'건':'—';
 }
 function renderWaterfall(){
-  const surplus=getSurplus(),base=Math.max(loanAmount,1);
+  const surplus=getSurplus(),totalIn=loanAmount+(userCash||0),base=Math.max(totalIn,1);
   const pct=v=>Math.max(1,Math.min(100,Math.round(Math.abs(v)/base*100)));
   let html=`<div class="wf-row" style="background:rgba(62,168,232,.06);border:1px solid rgba(62,168,232,.15)">
     <div class="wf-label" style="color:var(--loan);font-weight:700">① 주택담보대출 실행</div>
-    <div class="wf-bar-wrap"><div class="wf-bar" style="width:100%;background:var(--loan)"></div></div>
-    <div class="wf-amount" style="color:var(--loan)">+ ${fmt(loanAmount)}</div></div><div class="wf-arrow">↓</div>`;
-  const nums=['②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+    <div class="wf-bar-wrap"><div class="wf-bar" style="width:${pct(loanAmount)}%;background:var(--loan)"></div></div>
+    <div class="wf-amount" style="color:var(--loan)">+ ${fmt(loanAmount)}</div></div>`;
+  if(userCash>0){html+=`<div class="wf-row" style="background:rgba(184,230,54,.04);border:1px solid rgba(184,230,54,.15)">
+    <div class="wf-label" style="color:var(--accent);font-weight:700">② 보유현금</div>
+    <div class="wf-bar-wrap"><div class="wf-bar" style="width:${pct(userCash)}%;background:var(--accent)"></div></div>
+    <div class="wf-amount" style="color:var(--accent)">+ ${fmt(userCash)}</div></div>`;}
+  html+='<div class="wf-arrow">↓</div>';
+  const startNum=userCash>0?2:1;
+  const nums=['②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'].slice(startNum-1);
   loanItems.forEach((it,i)=>{html+=`<div class="wf-row"><div class="wf-label">${nums[i]} ${it.name}</div><div class="wf-bar-wrap"><div class="wf-bar" style="width:${pct(it.amount)}%;background:var(--text3)"></div></div><div class="wf-amount" style="color:var(--danger)">− ${fmt(it.amount)}</div></div>`;});
   cashItems.forEach((it,i)=>{html+=`<div class="wf-row" style="background:rgba(240,160,48,.03)"><div class="wf-label" style="color:var(--due)">${nums[loanItems.length+i]} ${it.name}</div><div class="wf-bar-wrap"><div class="wf-bar" style="width:${pct(it.amount)}%;background:var(--due)"></div></div><div class="wf-amount" style="color:var(--due)">− ${fmt(it.amount)}</div></div>`;});
   html+='<div class="wf-arrow">↓</div>';
@@ -1566,9 +1572,12 @@ function renderWaterfall(){
 function getArr(t){return t==='paid'?paidItems:t==='loan'?loanItems:t==='cash'?cashItems:futureItems;}
 function editAmount(type,idx){
   const arr=getArr(type),span=document.getElementById('amt-'+type+'-'+idx);if(!span)return;
-  const inp=document.createElement('input');inp.className='amount-input';inp.value=arr[idx].amount;inp.type='number';inp.inputMode='decimal';
+  const inp=document.createElement('input');inp.className='amount-input';inp.style.width='130px';
+  inp.type='text';inp.inputMode='numeric';
+  inp.value=Math.round(arr[idx].amount).toLocaleString('ko-KR');
   span.replaceWith(inp);inp.focus();inp.select();
-  const save=()=>{arr[idx].amount=parseFloat(inp.value.replace(/,/g,''))||0;updateBudget();};
+  inp.addEventListener('input',()=>{const raw=inp.value.replace(/[^0-9]/g,'');inp.value=raw?parseInt(raw).toLocaleString('ko-KR'):'';});
+  const save=()=>{arr[idx].amount=parseInt(inp.value.replace(/,/g,''))||0;updateBudget();};
   inp.addEventListener('blur',save);inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();save();}if(e.key==='Escape')updateBudget();});
 }
 function editName(type,idx){
@@ -1946,6 +1955,12 @@ function renderCalendar(){
 const researchStatusLabel={checking:'검토중',good:'유력 후보',pass:'패스'};
 const researchStatusStyle={checking:'background:rgba(100,100,100,.15);color:var(--text2)',good:'background:rgba(184,230,54,.12);color:var(--accent)',pass:'background:rgba(240,72,72,.1);color:var(--danger)'};
 
+function formatResearchPrice(p){
+  if(!p)return'';
+  const num=parseFloat(String(p).replace(/[^0-9.]/g,''));
+  if(isNaN(num))return p;
+  return Math.round(num).toLocaleString('ko-KR')+'원';
+}
 function renderResearch(){
   const list=document.getElementById('research-list'),countEl=document.getElementById('research-count');
   if(!list)return;
@@ -1968,7 +1983,7 @@ function renderResearch(){
     card.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;"><span style="font-size:13px;font-weight:700;">${item.name}</span><span class="badge" style="${researchStatusStyle[item.status]||researchStatusStyle.checking}">${researchStatusLabel[item.status]||'검토중'}</span></div>
       <div style="display:flex;gap:6px;flex-shrink:0;"><button class="ic-edit" onclick="openResearchModal(${realIdx})">편집</button><button class="del-btn" onclick="deleteResearch(${realIdx})">✕</button></div>
-    </div>${item.price?`<div style="font-size:11px;color:var(--due);font-family:'JetBrains Mono',monospace;margin-bottom:6px;">💰 ${item.price}</div>`:''}${urlHtml?`<div style="margin-bottom:4px;">${urlHtml}</div>`:''}${memoHtml}`;
+    </div>${item.price?`<div style="font-size:11px;color:var(--due);font-family:'JetBrains Mono',monospace;margin-bottom:6px;">💰 ${formatResearchPrice(item.price)}</div>`:''}${urlHtml?`<div style="margin-bottom:4px;">${urlHtml}</div>`:''}${memoHtml}`;
     list.appendChild(card);
   });
 }
