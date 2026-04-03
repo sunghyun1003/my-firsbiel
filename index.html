@@ -951,7 +951,7 @@ tr:active td{background:rgba(255,255,255,.02);}
 <div id="img-zoom-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:550;touch-action:pinch-zoom;cursor:zoom-out;">
   <div style="position:absolute;top:12px;right:16px;color:#fff;font-size:24px;cursor:pointer;z-index:551;" onclick="closeImgZoom()">✕</div>
   <div style="position:absolute;bottom:16px;left:0;right:0;text-align:center;color:#888;font-size:11px;pointer-events:none;">핀치로 확대/축소 · 스크롤로 이동 · 탭하여 닫기</div>
-  <div id="img-zoom-container" style="width:100%;height:100%;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;justify-content:center;">
+  <div id="img-zoom-container" style="width:100%;height:100%;overflow:auto;-webkit-overflow-scrolling:touch;">
   </div>
 </div>
 
@@ -2330,40 +2330,60 @@ function openImgZoom(){
   const imgs = window._pgImgs || [];
   if(!imgs.length) return;
   const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
-  const imgW = isMobile ? 'width:100vw;' : 'width:auto;max-width:95vw;';
+  const imgW = isMobile ? 'width:100%;' : 'max-width:95vw;';
   container.innerHTML = imgs.map(src =>
-    '<img src="'+src+'" style="'+imgW+'display:block;pointer-events:none;" loading="lazy">'
+    '<img src="'+src+'" style="'+imgW+'display:block;margin:0 auto;" loading="lazy">'
   ).join('');
   overlay.style.display = 'block';
   container.scrollTop = 0;
   document.body.style.overflow = 'hidden';
   // PC: 드래그=스크롤, 짧은클릭=닫기
-  let dragging=false, sy=0, sScroll=0, dist=0;
-  container.onmousedown=function(e){
-    dragging=true; sy=e.clientY; sScroll=container.scrollTop; dist=0;
-    container.style.cursor='grabbing'; e.preventDefault();
-  };
-  document.onmousemove=function(e){
+  let dragging=false, lastY=0, totalDist=0;
+  container.addEventListener('mousedown', function handler(e){
+    dragging=true; lastY=e.clientY; totalDist=0;
+    container.style.cursor='grabbing';
+    e.preventDefault();
+  });
+  container.addEventListener('mousemove', function handler(e){
     if(!dragging) return;
-    dist+=Math.abs(e.clientY-sy);
-    container.scrollTop=sScroll-(e.clientY-sy);
-    sy=e.clientY; sScroll=container.scrollTop;
-  };
-  document.onmouseup=function(e){
+    const dy = e.clientY - lastY;
+    totalDist += Math.abs(dy);
+    container.scrollTop -= dy;
+    lastY = e.clientY;
+  });
+  container.addEventListener('mouseup', function handler(e){
     if(!dragging) return;
-    dragging=false; container.style.cursor='';
-    if(dist<8) closeImgZoom();
-    dist=0;
-  };
-  // 모바일: 스와이프=스크롤(기본), 짧은탭=닫기
-  let tsy=0, tdist=0;
-  overlay.ontouchstart=function(e){ tsy=e.touches[0].clientY; tdist=0; };
-  overlay.ontouchmove=function(e){ tdist+=Math.abs(e.touches[0].clientY-tsy); tsy=e.touches[0].clientY; };
-  overlay.ontouchend=function(e){ if(tdist<15) closeImgZoom(); };
+    dragging=false; container.style.cursor='grab';
+    if(totalDist < 8) closeImgZoom();
+  });
+  container.addEventListener('mouseleave', function handler(e){
+    dragging=false; container.style.cursor='grab';
+  });
+  container.style.cursor='grab';
+  // 모바일: 기본 터치 스크롤 + 짧은탭=닫기
+  let tTotalDist=0;
+  container.addEventListener('touchstart', function(e){ tTotalDist=0; }, {passive:true});
+  container.addEventListener('touchmove', function(e){
+    tTotalDist += 5; // 움직이면 누적
+  }, {passive:true});
+  container.addEventListener('touchend', function(e){
+    if(tTotalDist < 15) closeImgZoom();
+  }, {passive:true});
 }
 function closeImgZoom(){
   document.getElementById('img-zoom-overlay').style.display = 'none';
   document.body.style.overflow = '';
+}
+
+// 취득세 계산 (취득가액 기준, 6억 이하 1%, 6~9억 구간별, 9억 초과 3%)
+function calcAcquisitionTax(totalWon){
+  let rate;
+  if(totalWon <= 600000000) rate = 0.01;
+  else if(totalWon <= 900000000) rate = (totalWon * 2/300000000 - 3) / 100;
+  else rate = 0.03;
+  const tax = Math.round(totalWon * rate);
+  const eduTax = Math.round(tax * 0.1);
+  return {tax, eduTax, rate};
 }
 
 
