@@ -593,8 +593,8 @@ tr:active td{background:rgba(255,255,255,.02);}
   </div>
 
     <div class="wizard-footer">
-    <button class="wizard-btn-back" id="wz-btn-back" onclick="wizardBack()" style="display:none;">이전</button>
-    <button class="wizard-btn-next" id="wz-btn-next" onclick="wizardNext()">다음</button>
+    <button class="wizard-btn-back" id="wz-btn-back" style="display:none;">이전</button>
+    <button class="wizard-btn-next" id="wz-btn-next">다음</button>
   </div>
 </div>
 
@@ -1046,6 +1046,7 @@ function googleLogin(){
   });
 }
 function logoutUser(){
+  loginHandled = false;
   authResolved = false;
   auth.signOut().then(()=>{
     currentUser = null;
@@ -1095,7 +1096,14 @@ function showLoginScreen(){
   }
 }
 
+let loginHandled = false; // 로그인 처리 중복 방지 플래그
 function handleLoginSuccess(user){
+  // 이미 로그인 처리가 완료되었으면 무시 (토큰 갱신 등으로 재호출 방지)
+  if(loginHandled){
+    debugLog('handleLoginSuccess 중복 호출 무시 (이미 처리됨)');
+    return;
+  }
+  loginHandled = true;
   authResolved = true;
   currentUser = user;
   debugLog('→ 로그인 성공 처리: ' + (user.email||user.uid));
@@ -1117,6 +1125,11 @@ function handleLoginSuccess(user){
   }).catch(e=>{
     debugLog('Firestore 로드 실패/타임아웃: ' + e.message);
     document.getElementById('loading-screen').style.display='none';
+    // 위자드가 이미 열려있으면(진행 중이면) 건드리지 않음
+    if(document.getElementById('wizard').classList.contains('open')){
+      debugLog('위자드 이미 열려있음 - 유지');
+      return;
+    }
     // 실패해도 위자드를 보여줌 (신규 사용자 취급)
     document.getElementById('app-main').style.display='none';
     document.getElementById('wizard').classList.add('open');
@@ -2367,6 +2380,37 @@ function showWzStep(step){
 }
 
 let wzNavLock = false;
+
+// ══ 위자드 버튼 안전 바인딩 (스크롤 중 ghost touch 방지) ══
+(function(){
+  function safeBind(btnId, fn){
+    const btn = document.getElementById(btnId);
+    if(!btn) return;
+    let tStart=0, tX=0, tY=0;
+    btn.addEventListener('touchstart', function(e){
+      tStart = Date.now(); 
+      tX = e.touches[0].clientX; 
+      tY = e.touches[0].clientY;
+    }, {passive:true});
+    btn.addEventListener('touchend', function(e){
+      const dt = Date.now() - tStart;
+      const dx = Math.abs(e.changedTouches[0].clientX - tX);
+      const dy = Math.abs(e.changedTouches[0].clientY - tY);
+      // 300ms 이내의 짧은 탭 + 이동 거리 15px 미만만 인정
+      if(dt < 300 && dx < 15 && dy < 15){
+        e.preventDefault();
+        fn();
+      }
+    }, {passive:false});
+    // PC 마우스 클릭은 그대로 동작
+    btn.addEventListener('click', function(e){
+      // 터치 디바이스가 아닌 경우에만 (터치 이벤트가 먼저 처리되므로)
+      if(!('ontouchstart' in window)) fn();
+    });
+  }
+  safeBind('wz-btn-back', wizardBack);
+  safeBind('wz-btn-next', wizardNext);
+})();
 function wizardNext(){
   if(wzNavLock) return;
   wzNavLock = true; setTimeout(()=>wzNavLock=false, 400);
@@ -2417,6 +2461,7 @@ function executeReset(){
   closeResetModal();
   
   // 1. 데이터 초기화
+  loginHandled=false; // 초기화 시 재로그인 허용
   loanAmount=60000; userCash=0; paidItems=[]; loanItems=[]; cashItems=[]; futureItems=[];
   repaySettings={rate:3.5,term:30,income:5000,other:0};
   purchaseItems=[]; researchItems=[]; scheduleItems=[];
