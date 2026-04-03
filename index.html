@@ -1135,7 +1135,7 @@ auth.onAuthStateChanged(user=>{
   } else {
     // user=null: 미로그인 상태 → 로그인 화면 표시
     // 단, 페이지 로드 직후에는 Firebase 세션 복원이 아직 안 끝났을 수 있으므로 대기
-    debugLog('user=null, 2초 대기 후 최종 판단...');
+    debugLog('user=null, 500ms 대기 후 최종 판단...');
     setTimeout(()=>{
       if(!authResolved){
         const rechecked = auth.currentUser;
@@ -1146,7 +1146,7 @@ auth.onAuthStateChanged(user=>{
           showLoginScreen();
         }
       }
-    }, 2000);
+    }, 500);
   }
 });
 
@@ -1161,7 +1161,7 @@ setTimeout(()=>{
       showLoginScreen();
     }
   }
-}, 8000);
+}, 3000);
 
 // ══ Firestore 저장/불러오기 ══
 let saveTimer = null;
@@ -1203,6 +1203,7 @@ async function loadFromFirestore(){
       debugLog('실제 데이터 있음: ' + hasRealData);
       if(hasRealData){
         applyLoadedData(data);
+        initDdays();
         document.getElementById('app-main').style.display = 'block';
         debugLog('→ 대시보드 표시');
       } else {
@@ -1348,7 +1349,6 @@ function getTotalNeeded(){return getPaidTotal()+getRequired();}
 function getSurplus(){return userCash + loanAmount - getRequired();}
 
 function updateBudget(){
-  initDdays();
   const paid=getPaidTotal(),needed=getTotalNeeded(),remain=needed-paid,surplus=getSurplus();
   // KPI 업데이트 + 변경 시 깜빡임 효과
   const kpis = [
@@ -2375,7 +2375,7 @@ function wizardBack(){
 function skipWizard(){
   document.getElementById('wizard').classList.remove('open');
   document.getElementById('app-main').style.display = 'block';
-  updateBudget();renderItemsTab();renderSchedule();renderResearch();
+  updateBudget();initDdays();renderItemsTab();renderSchedule();renderResearch();
   saveToFirestore();
 }
 
