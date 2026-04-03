@@ -974,7 +974,7 @@ tr:active td{background:rgba(255,255,255,.02);}
   </div>
 </div>
 
-<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
@@ -1289,6 +1289,10 @@ let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth();
 
 // ══ 유틸 ══
+function escapeHtml(str){
+  if(!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
 function fmt(n){
   const a=Math.abs(n),sign=n<0?'−':'';
   if(a>=10000){const v=a/10000;return sign+(Number.isInteger(v)?v:parseFloat(v.toFixed(2)))+'억원';}
@@ -1479,9 +1483,9 @@ function renderTbody(type,items){
     const color=type==='cash'?'var(--due)':type==='loan'?'var(--loan)':'var(--paid)';
     const estTag=item.est?` <span class="badge badge-est" style="cursor:pointer" onclick="toggleEst('${type}',${idx})">추정</span>`:'';
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td class="name-cell" onclick="editName('${type}',${idx})"><span id="name-${type}-${idx}">${item.name}</span>${estTag}</td>
+    tr.innerHTML=`<td class="name-cell" onclick="editName('${type}',${idx})"><span id="name-${type}-${idx}">${escapeHtml(item.name)}</span>${estTag}</td>
       <td class="editable amount" onclick="editAmount('${type}',${idx})"><span id="amt-${type}-${idx}" style="color:${color}">${fmt(item.amount)}</span></td>
-      <td class="editable note" onclick="editNote('${type}',${idx})"><span id="note-${type}-${idx}" style="color:var(--text2);font-size:11px">${item.note||'—'}</span></td>
+      <td class="editable note" onclick="editNote('${type}',${idx})"><span id="note-${type}-${idx}" style="color:var(--text2);font-size:11px">${escapeHtml(item.note)||'—'}</span></td>
       <td><button class="del-btn" onclick="delRow('${type}',${idx})">✕</button></td>`;
     tbody.appendChild(tr);
   });
@@ -1495,7 +1499,7 @@ function renderNeedTbody(){
     const tr=document.createElement('tr');
     tr.innerHTML='<td class="name-cell" onclick="editName(\''+item.src+'\','+item.idx+')"><span id="name-'+item.src+'-'+item.idx+'">'+item.name+'</span>'+estTag+'</td>'+
       '<td class="editable amount" onclick="editAmount(\''+item.src+'\','+item.idx+')"><span id="amt-'+item.src+'-'+item.idx+'" style="color:'+color+'">'+fmt(item.amount)+'</span></td>'+
-      '<td class="editable note" onclick="editNote(\''+item.src+'\','+item.idx+')"><span id="note-'+item.src+'-'+item.idx+'" style="color:var(--text2);font-size:11px">'+(item.note||'—')+'</span></td>'+
+      '<td class="editable note" onclick="editNote(\''+item.src+'\','+item.idx+')"><span id="note-'+item.src+'-'+item.idx+'" style="color:var(--text2);font-size:11px">'+(escapeHtml(item.note)||'—')+'</span></td>'+
       '<td><button class="del-btn" onclick="delRow(\''+item.src+'\','+item.idx+')">✕</button></td>';
     tbody.appendChild(tr);
   });
@@ -1613,7 +1617,7 @@ function addRow(type){
   else arr.push({name:'새 항목',amount:0,note:'',est:false});
   updateBudget();
 }
-function delRow(type,idx){getArr(type).splice(idx,1);updateBudget();}
+function delRow(type,idx){const arr=getArr(type);if(!confirm(arr[idx].name+' 항목을 삭제하시겠습니까?'))return;arr.splice(idx,1);updateBudget();}
 function onSliderChange(val){loanAmount=parseInt(val);document.getElementById('slider-display').textContent=fmt(loanAmount);updateBudget();}
 function setMinLoan(){const ml=Math.max(0,getRequired()-userCash);loanAmount=Math.min(Math.ceil(ml/100)*100,60000);document.getElementById('loan-slider').value=loanAmount;document.getElementById('slider-display').textContent=fmt(loanAmount);updateBudget();}
 function setMaxLoan(){loanAmount=60000;document.getElementById('loan-slider').value=60000;document.getElementById('slider-display').textContent='6억원';updateBudget();}
@@ -1652,6 +1656,7 @@ function sendFeedback(){
     }).then(()=>{
       document.getElementById('feedback-text').value='';
       document.getElementById('feedback-result').style.display='block';
+      showToast('✅ 피드백이 전달되었습니다');
       setTimeout(()=>{ document.getElementById('feedback-result').style.display='none'; }, 3000);
     }).catch(e=>{
       showToast('전송 실패: ' + e.message);
@@ -1708,12 +1713,12 @@ function buildItemCard(item,realIdx){
     }
   }
   const card=document.createElement('div');card.className='item-card';
-  card.innerHTML=`<div class="ic-header"><div class="ic-name" onclick="openItemModal(${realIdx})">${item.name}</div><span class="ic-category ${catClass[item.category]||'cat-etc'}">${catLabel[item.category]||'기타'}</span></div>
-    <div class="ic-body">${item.desc?`<div class="ic-desc-block">${item.desc}</div>`:''}
+  card.innerHTML=`<div class="ic-header"><div class="ic-name" onclick="openItemModal(${realIdx})">${escapeHtml(item.name)}</div><span class="ic-category ${catClass[item.category]||'cat-etc'}">${catLabel[item.category]||'기타'}</span></div>
+    <div class="ic-body">${item.desc?`<div class="ic-desc-block">${escapeHtml(item.desc)}</div>`:''}
     <div style="display:flex;flex-direction:column;gap:4px;">
-      ${item.phone?`<div class="ic-row"><span class="ic-row-label">📞</span><span class="ic-row-value">${item.phone}</span></div>`:''}
+      ${item.phone?`<div class="ic-row"><span class="ic-row-label">📞</span><span class="ic-row-value">${escapeHtml(item.phone)}</span></div>`:''}
       ${item.date?`<div class="ic-row"><span class="ic-row-label">📅</span><span class="ic-row-value">${item.date}${item.time?' · '+item.time:''}</span></div>`:''}
-      ${item.memo?`<div class="ic-row"><span class="ic-row-label">📝</span><span class="ic-row-value" style="text-align:left;color:var(--text2)">${item.memo}</span></div>`:''}
+      ${item.memo?`<div class="ic-row"><span class="ic-row-label">📝</span><span class="ic-row-value" style="text-align:left;color:var(--text2)">${escapeHtml(item.memo)}</span></div>`:''}
     </div>${moneyHtml}</div>
     <div class="ic-footer"><div style="display:flex;gap:5px;align-items:center;"><span class="badge ${statusClass[item.status]||'badge-est'}">${statusLabel[item.status]||'검토중'}</span>${item.installment>0?`<span class="installment-tag">${item.installment}개월</span>`:''}</div>
     <div class="ic-actions"><button class="ic-edit" onclick="openItemModal(${realIdx})">편집</button><button class="ic-del" onclick="deleteItem(${realIdx})">✕</button></div></div>`;
@@ -1822,6 +1827,7 @@ function autoCalcInstallment(){
 }
 function closeItemModal(){document.getElementById('item-modal').classList.remove('open');}
 function saveItem(){
+  if(!document.getElementById('m-name').value.trim()){showToast('⚠️ 업체명/제품명을 입력해 주세요');return;}
   const instSel=document.getElementById('m-installment').value;
   const installment=instSel==='custom'?parseInt(document.getElementById('m-custom-month').value)||0:parseInt(instSel)||0;
   const item={
@@ -1844,7 +1850,7 @@ function saveItem(){
   closeItemModal();renderItemsTab();updateBudget();
   showToast(editingItemIdx!==null?'✏️ 수정 완료':'✅ 항목 추가');
 }
-function deleteItem(idx){purchaseItems.splice(idx,1);renderItemsTab();updateBudget();showToast('🗑 삭제됨');}
+function deleteItem(idx){if(!confirm(purchaseItems[idx].name+' 항목을 삭제하시겠습니까?'))return;purchaseItems.splice(idx,1);renderItemsTab();updateBudget();showToast('🗑 삭제됨');}
 
 // ══ 스케줄 ══
 function renderSchedule(){
@@ -1864,7 +1870,7 @@ function renderSchedule(){
       const days=['일','월','화','수','목','금','토'];
       const el=document.createElement('div');el.className='sch-item '+cls;
       el.innerHTML=`<div class="sch-date-col"><div class="sch-date">${(d.getMonth()+1)+'/'+d.getDate()}</div><div class="sch-day">${days[d.getDay()]}${item.time?' · '+item.time:''}</div></div>
-        <div class="sch-body"><div class="sch-name">${item.name}</div>${item.desc?`<div class="sch-desc">${item.desc}</div>`:''}</div>
+        <div class="sch-body"><div class="sch-name">${escapeHtml(item.name)}</div>${item.desc?`<div class="sch-desc">${escapeHtml(item.desc)}</div>`:''}</div>
         <div class="sch-right"><div class="sch-dday" style="color:${ddColor}">${ddayText(diff)}</div>
         <div style="display:flex;gap:4px;"><button class="icon-btn" onclick="openSchModal(${realIdx})" style="font-size:10px">편집</button><button class="del-btn" onclick="deleteSchedule(${realIdx})">✕</button></div></div>`;
       grp.appendChild(el);
@@ -1904,11 +1910,12 @@ function openSchModal(idx=null){
 }
 function closeSchModal(){document.getElementById('sch-modal').classList.remove('open');}
 function saveSchedule(){
+  if(!document.getElementById('sm-name').value.trim()){showToast('⚠️ 일정명을 입력해 주세요');return;}
   const item={name:document.getElementById('sm-name').value||'새 일정',date:document.getElementById('sm-date').value,time:document.getElementById('sm-time').value,desc:document.getElementById('sm-desc').value,priority:document.getElementById('sm-priority').value};
   if(editingSchIdx!==null)scheduleItems[editingSchIdx]=item;else scheduleItems.push(item);
   closeSchModal();renderSchedule();scheduleSave();initDdays();showToast('📅 일정 저장');
 }
-function deleteSchedule(idx){scheduleItems.splice(idx,1);renderSchedule();scheduleSave();initDdays();showToast('🗑 삭제됨');}
+function deleteSchedule(idx){if(!confirm(scheduleItems[idx].name+' 일정을 삭제하시겠습니까?'))return;scheduleItems.splice(idx,1);renderSchedule();scheduleSave();initDdays();showToast('🗑 삭제됨');}
 
 // ══ 달력 ══
 function switchSchView(view){
@@ -1978,11 +1985,11 @@ function renderResearch(){
     const urls=(item.url||'').split('\n').filter(u=>u.trim());
     const urlHtml=urls.map(u=>{const t=u.trim();if(!t)return'';const d=t.length>45?t.slice(0,45)+'…':t;
       return`<a href="${t}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:3px;color:var(--loan);font-size:10px;text-decoration:none;background:rgba(62,168,232,.06);border:1px solid rgba(62,168,232,.15);border-radius:4px;padding:3px 7px;margin:2px 2px 0 0;word-break:break-all;">🔗 ${d}</a>`;}).join('');
-    const memoHtml=item.memo?`<div style="font-size:11px;color:var(--text2);line-height:1.6;background:var(--surface2);border-left:3px solid var(--border2);border-radius:0 6px 6px 0;padding:8px 10px;margin-top:8px;white-space:pre-wrap;">${item.memo}</div>`:'';
+    const memoHtml=item.memo?`<div style="font-size:11px;color:var(--text2);line-height:1.6;background:var(--surface2);border-left:3px solid var(--border2);border-radius:0 6px 6px 0;padding:8px 10px;margin-top:8px;white-space:pre-wrap;">${escapeHtml(item.memo)}</div>`:'';
     const card=document.createElement('div');
     card.style.cssText='background:var(--surface);border:1px solid var(--border);border-radius:'+getComputedStyle(document.documentElement).getPropertyValue('--radius')+';padding:14px;margin-bottom:10px;';
     card.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;"><span style="font-size:13px;font-weight:700;">${item.name}</span><span class="badge" style="${researchStatusStyle[item.status]||researchStatusStyle.checking}">${researchStatusLabel[item.status]||'검토중'}</span></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;"><span style="font-size:13px;font-weight:700;">${escapeHtml(item.name)}</span><span class="badge" style="${researchStatusStyle[item.status]||researchStatusStyle.checking}">${researchStatusLabel[item.status]||'검토중'}</span></div>
       <div style="display:flex;gap:6px;flex-shrink:0;"><button class="ic-edit" onclick="openResearchModal(${realIdx})">편집</button><button class="del-btn" onclick="deleteResearch(${realIdx})">✕</button></div>
     </div>${item.price?`<div style="font-size:11px;color:var(--due);font-family:'JetBrains Mono',monospace;margin-bottom:6px;">💰 ${formatResearchPrice(item.price)}</div>`:''}${urlHtml?`<div style="margin-bottom:4px;">${urlHtml}</div>`:''}${memoHtml}`;
     list.appendChild(card);
@@ -2003,16 +2010,17 @@ function openResearchModal(idx=null){
 }
 function closeResearchModal(){document.getElementById('research-modal').classList.remove('open');}
 function saveResearch(){
+  if(!document.getElementById('rm-name').value.trim()){showToast('⚠️ 제목을 입력해 주세요');return;}
   const item={name:document.getElementById('rm-name').value||'새 항목',price:document.getElementById('rm-price').value.trim(),status:document.getElementById('rm-status').value,url:document.getElementById('rm-url').value.trim(),memo:document.getElementById('rm-memo').value.trim()};
   if(editingResearchIdx!==null)researchItems[editingResearchIdx]=item;else researchItems.push(item);
   closeResearchModal();renderResearch();scheduleSave();
   showToast(editingResearchIdx!==null?'✏️ 수정 완료':'✅ 추가 완료');
 }
-function deleteResearch(idx){researchItems.splice(idx,1);renderResearch();scheduleSave();showToast('🗑 삭제됨');}
+function deleteResearch(idx){if(!confirm(researchItems[idx].name+' 메모를 삭제하시겠습니까?'))return;researchItems.splice(idx,1);renderResearch();scheduleSave();showToast('🗑 삭제됨');}
 
 // ══ 내보내기/불러오기 ══
 function getDataJson(){
-  return JSON.stringify({version:3,savedAt:new Date().toISOString(),loanAmount,paidItems,loanItems,cashItems,futureItems,repaySettings,purchaseItems,scheduleItems,researchItems},null,2);
+  return JSON.stringify({version:3,savedAt:new Date().toISOString(),loanAmount,userCash,paidItems,loanItems,cashItems,futureItems,repaySettings,purchaseItems,scheduleItems,researchItems},null,2);
 }
 function openExportModal(tab='export'){
   document.getElementById('export-textarea').value=getDataJson();
@@ -2686,18 +2694,14 @@ function applyWizardData(){
   document.getElementById('wizard').classList.remove('open');
   document.getElementById('app-main').style.display = 'block';
   
-  // 대시보드 렌더링
+  // 대시보드 갱신
   updateBudget();
   renderItemsTab();
   renderSchedule();
   renderResearch();
   initDdays();
-  
-  // Firestore 저장
   saveToFirestore();
-  debugLog('applyWizardData 완료 → 대시보드 표시');
 }
-
 </script>
 </body>
 </html>
