@@ -619,9 +619,9 @@ tr:active td{background:rgba(255,255,255,.02);}
 
 <!-- D-Day 바 -->
 <div class="dday-bar">
-  <div class="dday-chip" id="card-inspection" onclick="onDdayChipClick('inspection')" style="cursor:pointer;"><span class="dc-label">사전점검</span><span class="dc-value" id="dday-inspection">—</span></div>
+  <div class="dday-chip" id="card-inspection" onclick="ddayChipClick('inspection')" style="cursor:pointer;"><span class="dc-label">사전점검</span><span class="dc-value" id="dday-inspection">—</span></div>
   <div class="dday-chip" id="card-expo"><span class="dc-label">입주박람회</span><span class="dc-value" id="dday-expo">—</span></div>
-  <div class="dday-chip primary" id="card-main" onclick="onDdayChipClick('balance')" style="cursor:pointer;"><span class="dc-label">잔금일</span><span class="dc-value" id="dday-main">—</span></div>
+  <div class="dday-chip primary" id="card-balance" onclick="ddayChipClick('balance')" style="cursor:pointer;"><span class="dc-label">잔금일</span><span class="dc-value" id="dday-main">—</span></div>
 </div>
 
 <!-- ── 하단 네비게이션 ── -->
@@ -928,7 +928,7 @@ tr:active td{background:rgba(255,255,255,.02);}
     </div>
 
     <div style="font-size:9px;color:var(--text3);text-align:center;line-height:1.6;padding:8px 0;">
-      제작: 성현 · 문의: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7300061d141b0a061d4243434033141e121a1f5d101c1e">[email&#160;protected]</a><br>
+      제작: 성현 · 문의: <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="82f1f7ece5eafbf7ecb3b2b2b1c2e5efe3ebeeace1edef">[email&#160;protected]</a><br>
       데이터는 본인 구글 계정에만 저장됩니다
     </div>
   </div>
@@ -1135,7 +1135,7 @@ auth.onAuthStateChanged(user=>{
   } else {
     // user=null: 미로그인 상태 → 로그인 화면 표시
     // 단, 페이지 로드 직후에는 Firebase 세션 복원이 아직 안 끝났을 수 있으므로 대기
-    debugLog('user=null, 500ms 대기 후 최종 판단...');
+    debugLog('user=null, 2초 대기 후 최종 판단...');
     setTimeout(()=>{
       if(!authResolved){
         const rechecked = auth.currentUser;
@@ -1146,7 +1146,7 @@ auth.onAuthStateChanged(user=>{
           showLoginScreen();
         }
       }
-    }, 500);
+    }, 2000);
   }
 });
 
@@ -1161,7 +1161,7 @@ setTimeout(()=>{
       showLoginScreen();
     }
   }
-}, 3000);
+}, 8000);
 
 // ══ Firestore 저장/불러오기 ══
 let saveTimer = null;
@@ -1203,7 +1203,6 @@ async function loadFromFirestore(){
       debugLog('실제 데이터 있음: ' + hasRealData);
       if(hasRealData){
         applyLoadedData(data);
-        initDdays();
         document.getElementById('app-main').style.display = 'block';
         debugLog('→ 대시보드 표시');
       } else {
@@ -1270,50 +1269,45 @@ function wonToMan(v){return v?parseFloat((v/10000).toFixed(4)):0;}
 // ══ D-Day ══
 function initDdays(){
   // 입주박람회: 고정 날짜
-  const expoDiff = calcDdayNum('2026-05-02');
+  const expoDate = '2026-05-02';
+  const expoDiff = calcDdayNum(expoDate);
   document.getElementById('dday-expo').textContent = ddayText(expoDiff);
   const expoCard = document.getElementById('card-expo');
   expoCard.className = 'dday-chip' + (expoDiff<=7?' very-soon':expoDiff<=30?' soon':'');
 
-  // 사전점검: scheduleItems에서 읽기
-  const inspectItem = scheduleItems.find(s => s.name === '사전점검');
+  // 사전점검: 스케줄에서 찾기
+  const inspectSch = scheduleItems.find(s => s.name === '사전점검');
   const inspectEl = document.getElementById('dday-inspection');
   const inspectCard = document.getElementById('card-inspection');
-  if(inspectItem && inspectItem.date){
-    const diff = calcDdayNum(inspectItem.date);
+  if(inspectSch && inspectSch.date){
+    const diff = calcDdayNum(inspectSch.date);
     inspectEl.textContent = ddayText(diff);
     inspectCard.className = 'dday-chip' + (diff<=7?' very-soon':diff<=30?' soon':'');
   } else {
     inspectEl.textContent = '입력필요';
-    inspectEl.style.fontSize = '10px';
+    inspectEl.style.fontSize = '11px';
     inspectCard.className = 'dday-chip';
   }
 
-  // 잔금일: scheduleItems에서 읽기
-  const balanceItem = scheduleItems.find(s => s.name === '잔금 납부');
-  const mainEl = document.getElementById('dday-main');
-  const mainCard = document.getElementById('card-main');
-  if(balanceItem && balanceItem.date){
-    const diff = calcDdayNum(balanceItem.date);
-    mainEl.textContent = ddayText(diff);
-    if(mainCard) mainCard.className = 'dday-chip primary' + (diff<=7?' very-soon':diff<=30?' soon':'');
+  // 잔금일: 스케줄에서 찾기
+  const balanceSch = scheduleItems.find(s => s.name === '잔금 납부');
+  const balanceEl = document.getElementById('dday-main');
+  const balanceCard = document.getElementById('card-balance');
+  if(balanceSch && balanceSch.date){
+    const diff = calcDdayNum(balanceSch.date);
+    balanceEl.textContent = ddayText(diff);
+    if(balanceCard) balanceCard.className = 'dday-chip primary' + (diff<=7?' very-soon':diff<=30?' soon':'');
   } else {
-    mainEl.textContent = '입력필요';
-    mainEl.style.fontSize = '10px';
-    if(mainCard) mainCard.className = 'dday-chip primary';
+    balanceEl.textContent = '입력필요';
+    balanceEl.style.fontSize = '11px';
+    if(balanceCard) balanceCard.className = 'dday-chip primary';
   }
 }
 
-function onDdayChipClick(type){
+function ddayChipClick(type){
+  // 대시보드가 보이는 상태에서만 동작
+  if(document.getElementById('app-main').style.display === 'none') return;
   switchTab('schedule');
-  setTimeout(()=>{
-    // 스케줄 탭의 "+" 버튼 근처로 스크롤
-    const addBtn = document.querySelector('#tab-schedule .fab');
-    if(addBtn) addBtn.scrollIntoView({behavior:'smooth', block:'center'});
-    // 추가 안내 토스트
-    const label = type === 'inspection' ? '사전점검' : '잔금 납부';
-    showToast('📅 ' + label + ' 일정을 스케줄에 추가해 주세요');
-  }, 300);
 }
 
 // ══ 탭 전환 ══
@@ -1832,9 +1826,9 @@ function closeSchModal(){document.getElementById('sch-modal').classList.remove('
 function saveSchedule(){
   const item={name:document.getElementById('sm-name').value||'새 일정',date:document.getElementById('sm-date').value,time:document.getElementById('sm-time').value,desc:document.getElementById('sm-desc').value,priority:document.getElementById('sm-priority').value};
   if(editingSchIdx!==null)scheduleItems[editingSchIdx]=item;else scheduleItems.push(item);
-  closeSchModal();renderSchedule();scheduleSave();showToast('📅 일정 저장');
+  closeSchModal();renderSchedule();scheduleSave();initDdays();showToast('📅 일정 저장');
 }
-function deleteSchedule(idx){scheduleItems.splice(idx,1);renderSchedule();scheduleSave();showToast('🗑 삭제됨');}
+function deleteSchedule(idx){scheduleItems.splice(idx,1);renderSchedule();scheduleSave();initDdays();showToast('🗑 삭제됨');}
 
 // ══ 달력 ══
 function switchSchView(view){
@@ -1988,7 +1982,7 @@ function applyLoadedData(data){
   document.getElementById('inp-term').value=repaySettings.term;
   document.getElementById('inp-income').value=repaySettings.income;
   document.getElementById('inp-other').value=repaySettings.other;
-  updateBudget();renderItemsTab();renderSchedule();renderResearch();
+  updateBudget();renderItemsTab();renderSchedule();renderResearch();initDdays();
 }
 
 // ══ 모달 바깥 클릭 닫기 ══
@@ -2001,19 +1995,18 @@ function applyLoadedData(data){
     if(mdown&&e.target===this){
       e.stopPropagation(); e.preventDefault();
       this.classList.remove('open');
-      if(typeof wzNavLock!=='undefined'){wzNavLock=true;setTimeout(()=>wzNavLock=false,600);}
+      if(typeof wzNavLock!=='undefined'){wzNavLock=true;setTimeout(()=>wzNavLock=false,800);}
     }
     mdown=false;
   });
   overlay.addEventListener('touchstart',function(e){mdown=(e.target===this);},{passive:true});
   overlay.addEventListener('touchend',function(e){
     if(mdown&&e.target===this){
-      e.stopPropagation();
       this.classList.remove('open');
-      if(typeof wzNavLock!=='undefined'){wzNavLock=true;setTimeout(()=>wzNavLock=false,1200);}
+      if(typeof wzNavLock!=='undefined'){wzNavLock=true;setTimeout(()=>wzNavLock=false,800);}
     }
     mdown=false;
-  },{passive:false});
+  },{passive:true});
 });
 
 // ══ 초기화 ══
@@ -2262,7 +2255,7 @@ function openPriceGuide(type){
 }
 function closePriceGuide(){ 
   document.getElementById('price-guide-modal').classList.remove('open');
-  wzNavLock = true; setTimeout(()=>wzNavLock=false, 1200);
+  wzNavLock = true; setTimeout(()=>wzNavLock=false, 800);
 }
 
 // 이미지 확대 뷰어
@@ -2284,6 +2277,7 @@ function openImgZoom(src){
 function closeImgZoom(){
   document.getElementById('img-zoom-overlay').style.display = 'none';
   document.body.style.overflow = '';
+  wzNavLock = true; setTimeout(()=>wzNavLock=false, 800);
 }
 
 // 취득세 계산 (취득가액 기준, 6억 이하 1%, 6~9억 구간별, 9억 초과 3%)
@@ -2369,13 +2363,13 @@ function wzValidateStep1(){
 }
 function wizardBack(){
   if(wzNavLock) return;
-  wzNavLock = true; setTimeout(()=>wzNavLock=false, 400);
+  wzNavLock = true; setTimeout(()=>wzNavLock=false, 500);
   if(wzStep > 1) showWzStep(wzStep - 1);
 }
 function skipWizard(){
   document.getElementById('wizard').classList.remove('open');
   document.getElementById('app-main').style.display = 'block';
-  updateBudget();initDdays();renderItemsTab();renderSchedule();renderResearch();
+  updateBudget();renderItemsTab();renderSchedule();renderResearch();
   saveToFirestore();
 }
 
@@ -2478,16 +2472,19 @@ function applyWizardData(){
     const depositMW = priceMW * 0.1;
     paidItems.push({name:'계약금', amount:depositMW, note:'분양가의 10%'});
 
-    // 2) 중도금 자납분
+    // 2) 중도금 처리
     const midTotalMW = priceMW * 0.6; // 중도금 총액 (분양가의 60%)
-    if(rounds === 0){
-      // 대출 없음 = 중도금 전액 자납 (기납부)
-      paidItems.push({name:'중도금 (자납 전액)', amount:midTotalMW, note:'중도금 대출 없이 전액 납부'});
-    } else if(midloanMW < midTotalMW){
-      const selfPaidMid = midTotalMW - midloanMW;
-      if(selfPaidMid > 0){
-        paidItems.push({name:'중도금 자납분', amount:selfPaidMid, note:'중도금 총액 − 대출액'});
+    if(rounds > 0){
+      // 대출 있는 경우: 자납분 = 중도금 총액 - 대출잔액
+      if(midloanMW < midTotalMW){
+        const selfPaidMid = midTotalMW - midloanMW;
+        if(selfPaidMid > 0){
+          paidItems.push({name:'중도금 자납분', amount:selfPaidMid, note:'중도금 총액 − 대출액'});
+        }
       }
+    } else {
+      // 대출 없는 경우: 중도금 전액을 직접 납부한 것이므로 기납부에 포함
+      paidItems.push({name:'중도금 납부', amount:midTotalMW, note:'중도금 전액 자납 (분양가의 60%)'});
     }
   }
   // 3) 유상옵션 계약금: 150만원 (정액, 유상옵션 신청자 전원)
@@ -2560,4 +2557,20 @@ function applyWizardData(){
 
   // 위자드 닫기
   document.getElementById('wizard').classList.remove('open');
-  do
+  document.getElementById('app-main').style.display = 'block';
+  
+  // 대시보드 렌더링
+  updateBudget();
+  renderItemsTab();
+  renderSchedule();
+  renderResearch();
+  initDdays();
+  
+  // Firestore 저장
+  saveToFirestore();
+  debugLog('applyWizardData 완료 → 대시보드 표시');
+}
+
+</script>
+</body>
+</html>
