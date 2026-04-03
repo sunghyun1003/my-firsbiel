@@ -425,7 +425,7 @@ tr:active td{background:rgba(255,255,255,.02);}
       </select>
     </div>
 
-    <div class="wizard-field">
+    <div class="wizard-field" id="wz-price-section" style="display:none;">
       <label class="wizard-label">② 분양가</label>
       <div style="display:flex;gap:6px;margin-bottom:4px;">
         <button class="tab active" id="wz-price-tab-direct" onclick="wzPriceMode('direct',this)" style="flex:1;padding:10px;font-size:12px;">수동 입력</button>
@@ -593,8 +593,8 @@ tr:active td{background:rgba(255,255,255,.02);}
   </div>
 
     <div class="wizard-footer">
-    <button class="wizard-btn-back" id="wz-btn-back" style="display:none;">이전</button>
-    <button class="wizard-btn-next" id="wz-btn-next">다음</button>
+    <button class="wizard-btn-back" id="wz-btn-back" onclick="wizardBack()" style="display:none;">이전</button>
+    <button class="wizard-btn-next" id="wz-btn-next" onclick="wizardNext()">다음</button>
   </div>
 </div>
 
@@ -948,11 +948,11 @@ tr:active td{background:rgba(255,255,255,.02);}
   </div>
 </div>
 
-<!-- 이미지 확대 뷰어 (전체 이미지 하나로 연결) -->
-<div id="img-zoom-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:550;touch-action:pinch-zoom;" onclick="closeImgZoom()">
-  <div style="position:absolute;top:12px;right:16px;color:#fff;font-size:24px;cursor:pointer;z-index:551;" onclick="closeImgZoom()">✕</div>
-  <div style="position:absolute;bottom:16px;left:0;right:0;text-align:center;color:#888;font-size:11px;">핀치로 확대/축소 · 스크롤로 이동 · 탭하여 닫기</div>
-  <div id="img-zoom-container" style="width:100%;height:100%;overflow:auto;-webkit-overflow-scrolling:touch;" onclick="event.stopPropagation()">
+<!-- 이미지 확대 뷰어 (원본 크기, 하나로 이어서 스크롤) -->
+<div id="img-zoom-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:550;touch-action:pinch-zoom;cursor:zoom-out;" onclick="closeImgZoom()">
+  <div style="position:absolute;top:12px;right:16px;color:#fff;font-size:24px;cursor:pointer;z-index:551;" onclick="event.stopPropagation();closeImgZoom()">✕</div>
+  <div style="position:absolute;bottom:16px;left:0;right:0;text-align:center;color:#888;font-size:11px;pointer-events:none;">핀치로 확대/축소 · 스크롤로 이동 · 탭하여 닫기</div>
+  <div id="img-zoom-container" style="width:100%;height:100%;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;justify-content:center;" onclick="event.stopPropagation()">
   </div>
 </div>
 
@@ -2159,7 +2159,10 @@ function wzTypeSelect(){
   const type = document.getElementById('wz-type').value;
   const data = TYPE_DATA[type];
   const balconyWrap = document.getElementById('wz-balcony-wrap');
+  const priceSection = document.getElementById('wz-price-section');
   if(data){
+    // 타입 선택 시 분양가 영역 표시
+    if(priceSection) priceSection.style.display = 'block';
     // 발코니 확장비 표시
     balconyWrap.style.display = 'block';
     document.getElementById('wz-balcony-price').textContent = '확장비: ' + fmtWonComma(data.balcony);
@@ -2172,6 +2175,7 @@ function wzTypeSelect(){
   } else {
     document.getElementById('wz-balcony-price').textContent = '타입을 먼저 선택해 주세요';
     document.getElementById('wz-price-auto').value = '';
+    if(priceSection) priceSection.style.display = 'none';
   }
   updateWzCalc();
 }
@@ -2326,13 +2330,21 @@ function openImgZoom(){
   const container = document.getElementById('img-zoom-container');
   const imgs = window._pgImgs || [];
   if(!imgs.length) return;
-  // 모든 이미지를 하나로 이어서 표시
-  container.innerHTML = imgs.map(src =>
-    '<img src="'+src+'" style="width:100%;display:block;" loading="lazy">'
-  ).join('');
+  // 모든 이미지를 세로로 이어서 원본 크기로 표시
+  const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
+  const imgStyle = isMobile 
+    ? 'width:100vw;display:block;' 
+    : 'width:auto;max-width:95vw;display:block;';
+  container.innerHTML = '<div onclick="event.stopPropagation()" style="display:inline-block;">' +
+    imgs.map(src => '<img src="'+src+'" style="'+imgStyle+'" loading="lazy">').join('') +
+    '</div>';
   overlay.style.display = 'block';
   container.scrollTop = 0;
   document.body.style.overflow = 'hidden';
+}
+function closeImgZoom(){
+  document.getElementById('img-zoom-overlay').style.display = 'none';
+  document.body.style.overflow = '';
 }
 
 
@@ -2390,36 +2402,7 @@ function showWzStep(step, caller){
 
 let wzNavLock = false;
 
-// ══ 위자드 버튼 안전 바인딩 (스크롤 중 ghost touch 방지) ══
-(function(){
-  function safeBind(btnId, fn){
-    const btn = document.getElementById(btnId);
-    if(!btn) return;
-    let tStart=0, tX=0, tY=0;
-    btn.addEventListener('touchstart', function(e){
-      tStart = Date.now(); 
-      tX = e.touches[0].clientX; 
-      tY = e.touches[0].clientY;
-    }, {passive:true});
-    btn.addEventListener('touchend', function(e){
-      const dt = Date.now() - tStart;
-      const dx = Math.abs(e.changedTouches[0].clientX - tX);
-      const dy = Math.abs(e.changedTouches[0].clientY - tY);
-      // 300ms 이내의 짧은 탭 + 이동 거리 15px 미만만 인정
-      if(dt < 300 && dx < 15 && dy < 15){
-        e.preventDefault();
-        fn();
-      }
-    }, {passive:false});
-    // PC 마우스 클릭은 그대로 동작
-    btn.addEventListener('click', function(e){
-      // 터치 디바이스가 아닌 경우에만 (터치 이벤트가 먼저 처리되므로)
-      if(!('ontouchstart' in window)) fn();
-    });
-  }
-  safeBind('wz-btn-back', wizardBack);
-  safeBind('wz-btn-next', wizardNext);
-})();
+
 function wizardNext(){
   if(wzNavLock) return;
   wzNavLock = true; setTimeout(()=>wzNavLock=false, 400);
@@ -2513,6 +2496,7 @@ function executeReset(){
     document.getElementById('wz-type').value='';
     document.getElementById('wz-balcony').checked=true;
     document.getElementById('wz-balcony-wrap').style.display='none';
+    document.getElementById('wz-price-section').style.display='none';
     document.getElementById('wz-price-auto').value='';
     document.getElementById('wz-auto-desc').style.display='none';
     wzPriceMode('direct',document.getElementById('wz-price-tab-direct'));
