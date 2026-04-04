@@ -256,9 +256,11 @@ tr:active td{background:rgba(255,255,255,.02);}
 /* ── 모달 ── */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:300;align-items:flex-end;justify-content:center;padding:0;}
 .modal-overlay.open{display:flex;}
-.modal{background:var(--surface);border-top:1px solid var(--border2);border-radius:16px 16px 0 0;padding:20px 20px calc(20px + var(--safe-bottom));width:100%;max-width:520px;max-height:85vh;overflow-y:auto;position:relative;animation:slideUp .25s ease;}
+.modal{background:var(--surface);border-top:1px solid var(--border2);border-radius:16px 16px 0 0;padding:20px 20px calc(20px + var(--safe-bottom));width:100%;max-width:520px;max-height:85vh;overflow-y:auto;position:relative;animation:slideUp .25s ease;touch-action:pan-y;}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
-.modal-handle{width:36px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto 16px;}
+@keyframes slideDown{from{transform:translateY(0);opacity:1}to{transform:translateY(100%);opacity:0}}
+.modal-handle{width:36px;height:4px;border-radius:2px;background:var(--border2);margin:0 auto 16px;cursor:grab;}
+.modal-handle-area{padding:10px 0 0;margin:-20px -20px 0;cursor:grab;touch-action:none;}
 .modal-title{font-size:15px;font-weight:700;margin-bottom:16px;}
 .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
 .modal-field{display:flex;flex-direction:column;gap:4px;}
@@ -2126,6 +2128,72 @@ function applyLoadedData(data){
     mdown=false;
   },{passive:false});
 });
+
+// ══ 모달 스와이프 닫기 ══
+(function(){
+  document.querySelectorAll('.modal-overlay').forEach(overlay=>{
+    const modal = overlay.querySelector('.modal');
+    if(!modal) return;
+    
+    // 핸들 영역을 터치 시작점으로 사용 (모달 상단 40px 영역)
+    let startY=0, currentY=0, isDragging=false, modalScrollTop=0;
+    
+    function onTouchStart(e){
+      // 모달 상단 핸들 영역(40px)에서만 스와이프 시작
+      const rect = modal.getBoundingClientRect();
+      const touchY = e.touches[0].clientY;
+      if(touchY - rect.top > 50) return; // 핸들 영역 밖이면 무시
+      if(modal.scrollTop > 0) return; // 스크롤 중이면 무시
+      startY = e.touches[0].clientY;
+      currentY = startY;
+      isDragging = true;
+      modal.style.transition = 'none';
+    }
+    
+    function onTouchMove(e){
+      if(!isDragging) return;
+      currentY = e.touches[0].clientY;
+      const dy = currentY - startY;
+      if(dy > 0){ // 아래로만 드래그
+        modal.style.transform = 'translateY(' + dy + 'px)';
+        modal.style.opacity = Math.max(0.5, 1 - dy/400);
+        e.preventDefault(); // 스크롤 방지
+      } else {
+        // 위로 드래그 시 리셋
+        modal.style.transform = '';
+        modal.style.opacity = '';
+      }
+    }
+    
+    function onTouchEnd(e){
+      if(!isDragging) return;
+      isDragging = false;
+      const dy = currentY - startY;
+      if(dy > 100){ // 100px 이상 내리면 닫기
+        modal.style.transition = 'transform .2s ease, opacity .2s ease';
+        modal.style.transform = 'translateY(100%)';
+        modal.style.opacity = '0';
+        setTimeout(()=>{
+          overlay.classList.remove('open');
+          modal.style.transform = '';
+          modal.style.opacity = '';
+          modal.style.transition = '';
+          if(typeof wzNavLock!=='undefined'){wzNavLock=true;setTimeout(()=>wzNavLock=false,800);}
+        }, 200);
+      } else {
+        // 스냅백
+        modal.style.transition = 'transform .2s ease, opacity .2s ease';
+        modal.style.transform = '';
+        modal.style.opacity = '';
+        setTimeout(()=>{ modal.style.transition = ''; }, 200);
+      }
+    }
+    
+    modal.addEventListener('touchstart', onTouchStart, {passive:false});
+    modal.addEventListener('touchmove', onTouchMove, {passive:false});
+    modal.addEventListener('touchend', onTouchEnd, {passive:true});
+  });
+})();
 
 // ══ 초기화 ══
 initDdays();
